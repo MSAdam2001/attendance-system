@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Smart Attendance System
 
-## Getting Started
+A universal, modern, and efficient attendance management system for schools, colleges, and universities worldwide.
 
-First, run the development server:
+## 🌟 Features
 
+- ⚡ **Quick Login** - Google, Microsoft, Facebook OAuth
+- 📊 **Real-time Tracking** - Live attendance monitoring
+- 🔒 **Secure** - Prevents fake attendance submissions
+- ⏱️ **Time-Limited Sessions** - Customizable duration
+- 📱 **Mobile Friendly** - Works on all devices
+- 📥 **Export Options** - Excel, PDF, CSV formats
+- 🌍 **Universal** - Works for any educational institution
+
+## 🚀 Quick Start
 ```bash
+# Install dependencies
+npm install
+
+# Run development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# Open http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 💡 How It Works
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### For Lecturers:
+1. Login with Google/Microsoft/Facebook or email
+2. Create attendance session (set duration)
+3. Share generated link with students
+4. View real-time submissions
+5. Export attendance records
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### For Students:
+1. Click attendance link from lecturer
+2. Fill in details (Name, Reg No, Department, Level)
+3. Submit once (prevents duplicates)
+4. Get confirmation
 
-## Learn More
+## 🔐 Security Features
 
-To learn more about Next.js, take a look at the following resources:
+- One registration number = one attendance
+- Time-limited sessions (5-60 minutes)
+- Auto-expiry system
+- Duplicate prevention
+- Session validation
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 📦 Tech Stack
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **Frontend:** Next.js 14, React 18, Tailwind CSS
+- **Authentication:** OAuth (Google, Microsoft, Facebook)
+- **Storage:** LocalStorage (upgradeable to database)
+- **Export:** XLSX, jsPDF, CSV
 
-## Deploy on Vercel
+## 🎓 Perfect For
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Universities
+- Colleges
+- High Schools
+- Training Centers
+- Workshops
+- Seminars
+- Any educational institution
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📄 License
+
+MIT License - Free to use for any educational institution
+
+## 🤝 Contributing
+
+Contributions welcome! Feel free to submit issues and pull requests.
+
+## 📧 Support
+
+For support, email: support@smartattendance.com
