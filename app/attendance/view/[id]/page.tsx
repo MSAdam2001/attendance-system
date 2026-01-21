@@ -50,7 +50,7 @@ export default function ViewAttendance() {
   const sortedStudents = [...filteredStudents].sort((a, b) => {
     if (sortBy === 'name') return a.fullName.localeCompare(b.fullName);
     if (sortBy === 'regNumber') return a.regNumber.localeCompare(b.regNumber);
-    return new Date(b.timestamp) - new Date(a.timestamp);
+    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
   });
 
   // Export to Excel
