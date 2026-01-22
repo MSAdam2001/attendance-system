@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
@@ -7,28 +8,17 @@ import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 
-// Type declarations for jspdf and jspdf-autotable
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF;
-    lastAutoTable: { finalY: number };
-    internal: {
-      pageSize: {
-        width: number;
-        height: number;
-        getWidth: () => number;
-        getHeight: () => number;
-      };
-      getNumberOfPages: () => number;
-    };
-  }
+// Comprehensive type declarations for jspdf
+interface JsPDFWithAutoTable extends jsPDF {
+  autoTable: (options: any) => JsPDFWithAutoTable;
+  lastAutoTable: { finalY: number };
+  previousAutoTable?: { finalY: number };
 }
-
 
 export default function ViewAttendance() {
   const router = useRouter();
   const params = useParams();
-  const [session, setSession] = useState(null);
+  const [session, setSession] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState('time');
@@ -49,7 +39,7 @@ export default function ViewAttendance() {
     const savedSessions = localStorage.getItem('attendanceSessions');
     if (savedSessions) {
       const sessions = JSON.parse(savedSessions);
-      const foundSession = sessions.find(s => s.id === params.id);
+      const foundSession = sessions.find((s: any) => s.id === params.id);
       if (foundSession) {
         setSession(foundSession);
       } else {
@@ -59,13 +49,13 @@ export default function ViewAttendance() {
     }
   };
 
-  const filteredStudents = session?.students?.filter(student =>
+  const filteredStudents = session?.students?.filter((student: any) =>
     student.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     student.regNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
     student.department.toLowerCase().includes(searchTerm.toLowerCase())
   ) || [];
 
-  const sortedStudents = [...filteredStudents].sort((a, b) => {
+  const sortedStudents = [...filteredStudents].sort((a: any, b: any) => {
     if (sortBy === 'name') return a.fullName.localeCompare(b.fullName);
     if (sortBy === 'regNumber') return a.regNumber.localeCompare(b.regNumber);
     return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
@@ -78,7 +68,7 @@ export default function ViewAttendance() {
       return;
     }
 
-    const data = session.students.map((student, index) => ({
+    const data = session.students.map((student: any, index: number) => ({
       '#': index + 1,
       'Full Name': student.fullName,
       'Registration Number': student.regNumber,
@@ -124,7 +114,7 @@ export default function ViewAttendance() {
       return;
     }
 
-    const doc = new jsPDF();
+    const doc = new jsPDF() as JsPDFWithAutoTable;
     
     // Add university header
     doc.setFontSize(20);
@@ -143,7 +133,7 @@ export default function ViewAttendance() {
     doc.text(`Total Present: ${session.students.length}`, 14, 56);
     
     // Add table
-    const tableData = session.students.map((student, index) => [
+    const tableData = session.students.map((student: any, index: number) => [
       index + 1,
       student.fullName,
       student.regNumber,
@@ -170,7 +160,7 @@ export default function ViewAttendance() {
     });
 
     // Add footer
-    const pageCount = doc.internal.getNumberOfPages();
+    const pageCount = (doc as any).internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
@@ -178,7 +168,7 @@ export default function ViewAttendance() {
       doc.text(
         `Generated: ${new Date().toLocaleString()} | Page ${i} of ${pageCount}`,
         105,
-        doc.internal.pageSize.height - 10,
+        (doc as any).internal.pageSize.height - 10,
         { align: 'center' }
       );
     }
@@ -195,7 +185,7 @@ export default function ViewAttendance() {
     }
 
     const headers = ['#', 'Full Name', 'Registration Number', 'Department', 'Level', 'Time Submitted'];
-    const rows = session.students.map((student, index) => [
+    const rows = session.students.map((student: any, index: number) => [
       index + 1,
       student.fullName,
       student.regNumber,
@@ -205,7 +195,7 @@ export default function ViewAttendance() {
     ]);
 
     let csvContent = headers.join(',') + '\n';
-    rows.forEach(row => {
+    rows.forEach((row: any[]) => {
       csvContent += row.map(cell => `"${cell}"`).join(',') + '\n';
     });
 
@@ -220,20 +210,20 @@ export default function ViewAttendance() {
 
   const printAttendance = () => { window.print(); };
 
-  const getSessionStatus = (expiresAt) => {
+  const getSessionStatus = (expiresAt: string) => {
     const now = new Date();
     const expiry = new Date(expiresAt);
-    const timeLeft = expiry - now;
+    const timeLeft = expiry.getTime() - now.getTime();
     const minutesLeft = Math.floor(timeLeft / 60000);
     if (timeLeft <= 0) return { label: 'Expired', color: 'bg-gray-100 text-gray-600', icon: '🔒' };
     if (minutesLeft <= 2) return { label: 'Ending Soon', color: 'bg-yellow-100 text-yellow-700', icon: '⚠️' };
     return { label: 'Active', color: 'bg-green-100 text-green-700', icon: '✅' };
   };
 
-  const getTimeRemaining = (expiresAt) => {
+  const getTimeRemaining = (expiresAt: string) => {
     const now = new Date();
     const expiry = new Date(expiresAt);
-    const timeLeft = expiry - now;
+    const timeLeft = expiry.getTime() - now.getTime();
     const minutesLeft = Math.floor(timeLeft / 60000);
     const secondsLeft = Math.floor((timeLeft % 60000) / 1000);
     if (timeLeft <= 0) return 'Session Expired';
@@ -447,7 +437,7 @@ export default function ViewAttendance() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {sortedStudents.map((student, index) => (
+                  {sortedStudents.map((student: any, index: number) => (
                     <tr key={index} className="hover:bg-gray-50 print:hover:bg-white">
                       <td className="px-6 py-4 text-sm text-gray-900 font-medium">{index + 1}</td>
                       <td className="px-6 py-4 text-sm font-medium text-gray-900">{student.fullName}</td>
