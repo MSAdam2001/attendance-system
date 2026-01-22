@@ -178,7 +178,7 @@ export default function SimpleDashboard() {
   const getSessionStatus = (expiresAt) => {
     const now = new Date();
     const expiry = new Date(expiresAt);
-    const timeLeft = expiry - now;
+const timeLeft = expiry.getTime() - now.getTime();
     const minutesLeft = Math.floor(timeLeft / 60000);
 
     if (timeLeft <= 0) return { label: 'Expired', color: 'bg-gray-100 text-gray-600', icon: '🔒' };
@@ -198,7 +198,7 @@ export default function SimpleDashboard() {
   };
 
   const formatTimeAgo = (date) => {
-    const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+    const seconds = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000);
     if (seconds < 60) return 'just now';
     const minutes = Math.floor(seconds / 60);
     if (minutes < 60) return `${minutes}m ago`;

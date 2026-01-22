@@ -281,7 +281,7 @@ export default function AnalyticsPage() {
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
                   <XCircle className="w-8 h-8 text-red-600 mx-auto mb-2" />
                   <p className="text-2xl font-bold text-red-700">{analytics.summary.critical}</p>
-                  <p className="text-sm text-red-600">Critical (<50%)</p>
+<p className="text-sm text-red-600">{"Critical (<50%)"}</p>
                 </div>
               </div>
             </div>
