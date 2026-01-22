@@ -7,6 +7,13 @@ import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 
+// Type declaration for jspdf-autotable
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+  }
+}
+
 export default function ViewAttendance() {
   const router = useRouter();
   const params = useParams();
