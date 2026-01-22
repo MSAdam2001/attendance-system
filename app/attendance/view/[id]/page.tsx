@@ -7,12 +7,23 @@ import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 
-// Type declaration for jspdf-autotable
+// Type declarations for jspdf and jspdf-autotable
 declare module 'jspdf' {
   interface jsPDF {
     autoTable: (options: any) => jsPDF;
+    lastAutoTable: { finalY: number };
+    internal: {
+      pageSize: {
+        width: number;
+        height: number;
+        getWidth: () => number;
+        getHeight: () => number;
+      };
+      getNumberOfPages: () => number;
+    };
   }
 }
+
 
 export default function ViewAttendance() {
   const router = useRouter();
