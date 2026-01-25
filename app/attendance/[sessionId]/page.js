@@ -1,17 +1,11 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
 
-export default function StudentAttendancePage() {
-  const params = useParams();
-  const sessionId = params.sessionId;
-
+export default function StudentAttendancePage({ sessionId }) {
   const [formData, setFormData] = useState({
     fullName: '',
-    regNumber: '',
-    department: '',
-    level: ''
+    regNumber: ''
   });
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -19,51 +13,19 @@ export default function StudentAttendancePage() {
   const [error, setError] = useState('');
   const [timeLeft, setTimeLeft] = useState('');
 
-  // All Nigerian departments (same list as before)
-  const departments = [
-    'Biochemistry', 'Biology', 'Botany', 'Chemistry', 'Computer Science',
-    'Environmental Science', 'Geography', 'Geology', 'Mathematics',
-    'Microbiology', 'Physics', 'Statistics', 'Zoology',
-    'Agricultural Engineering', 'Chemical Engineering', 'Civil Engineering',
-    'Computer Engineering', 'Electrical Engineering', 'Industrial Engineering',
-    'Marine Engineering', 'Mechanical Engineering', 'Metallurgical Engineering',
-    'Petroleum Engineering', 'Software Engineering', 'Structural Engineering',
-    'Anatomy', 'Dentistry', 'Medical Laboratory Science', 'Medicine & Surgery',
-    'Nursing', 'Pharmacy', 'Physiology', 'Physiotherapy', 'Public Health',
-    'Criminology', 'Economics', 'International Relations', 'Mass Communication',
-    'Political Science', 'Psychology', 'Public Administration', 'Social Work',
-    'Sociology', 'Arabic Studies', 'Christian Religious Studies', 'English Language',
-    'Fine Arts', 'Foreign Languages', 'History', 'Islamic Studies',
-    'Linguistics', 'Music', 'Philosophy', 'Religious Studies', 'Theatre Arts',
-    'Accounting', 'Banking & Finance', 'Business Administration',
-    'Business Management', 'Entrepreneurship', 'Human Resource Management',
-    'Insurance', 'Marketing', 'Adult Education', 'Agricultural Science Education',
-    'Biology Education', 'Business Education', 'Chemistry Education',
-    'Computer Science Education', 'Early Childhood Education', 'Economics Education',
-    'Education & Arabic', 'Education & Biology', 'Education & Chemistry',
-    'Education & Computer Science', 'Education & Economics', 'Education & English',
-    'Education & French', 'Education & Geography', 'Education & History',
-    'Education & Mathematics', 'Education & Physics', 'Education & Political Science',
-    'Education & Religious Studies', 'Education & Social Studies',
-    'Educational Administration', 'Educational Psychology', 'Educational Technology',
-    'English Language Education', 'Geography Education', 'Guidance & Counselling',
-    'Health Education', 'History Education', 'Home Economics Education',
-    'Library & Information Science', 'Mathematics Education', 'Music Education',
-    'Physical & Health Education', 'Physics Education', 'Primary Education',
-    'Science Education', 'Social Studies Education', 'Special Education',
-    'Technical Education', 'Vocational Education', 'Common Law', 'Islamic Law', 'Law',
-    'Agricultural Economics', 'Agriculture', 'Animal Science', 'Crop Science',
-    'Fisheries', 'Food Science & Technology', 'Forestry', 'Soil Science',
-    'Architecture', 'Building Technology', 'Estate Management', 'Quantity Surveying',
-    'Surveying & Geoinformatics', 'Urban & Regional Planning',
-    'Artificial Intelligence', 'Cyber Security', 'Data Science',
-    'Information Technology', 'Library Science', 'Other'
-  ].sort();
-
-  const levels = ['100 Level', '200 Level', '300 Level', '400 Level', '500 Level', '600 Level'];
-
   useEffect(() => {
-    loadSession();
+    // For demo purposes, create a sample session
+    const sampleSession = {
+      id: sessionId || 'demo123',
+      courseName: 'Computer Science',
+      courseCode: 'CSC 101',
+      department: 'Computer Science',
+      level: '100 Level',
+      expiresAt: new Date(Date.now() + 15 * 60000).toISOString(),
+      students: []
+    };
+    setSession(sampleSession);
+    
     const savedData = localStorage.getItem(`attendance_${sessionId}`);
     if (savedData) {
       setFormData(JSON.parse(savedData));
@@ -82,25 +44,6 @@ export default function StudentAttendancePage() {
       localStorage.setItem(`attendance_${sessionId}`, JSON.stringify(formData));
     }
   }, [formData, sessionId]);
-
-  const loadSession = () => {
-    const sessions = JSON.parse(localStorage.getItem('attendanceSessions') || '[]');
-    const foundSession = sessions.find(s => s.id === sessionId);
-    
-    if (foundSession) {
-      setSession(foundSession);
-      
-      // Check if already submitted
-      const alreadySubmitted = foundSession.students?.some(
-        s => s.regNumber === formData.regNumber
-      );
-      if (alreadySubmitted) {
-        setSubmitted(true);
-      }
-    } else {
-      setError('Session not found or expired');
-    }
-  };
 
   const updateTimeLeft = () => {
     if (!session) return;
@@ -133,14 +76,6 @@ export default function StudentAttendancePage() {
       setError('Invalid registration number format. Example: UG24SEN1051');
       return false;
     }
-    if (!formData.department) {
-      setError('Please select your department');
-      return false;
-    }
-    if (!formData.level) {
-      setError('Please select your level');
-      return false;
-    }
     return true;
   };
 
@@ -154,7 +89,6 @@ export default function StudentAttendancePage() {
       return;
     }
 
-    // Check if already submitted
     const alreadySubmitted = session.students?.some(
       s => s.regNumber === formData.regNumber
     );
@@ -166,13 +100,13 @@ export default function StudentAttendancePage() {
 
     setLoading(true);
 
-    // Add student to session
     const sessions = JSON.parse(localStorage.getItem('attendanceSessions') || '[]');
     const sessionIndex = sessions.findIndex(s => s.id === sessionId);
     
     if (sessionIndex !== -1) {
       const studentData = {
-        ...formData,
+        fullName: formData.fullName,
+        regNumber: formData.regNumber,
         timestamp: new Date().toISOString()
       };
       
@@ -182,8 +116,6 @@ export default function StudentAttendancePage() {
       
       sessions[sessionIndex].students.push(studentData);
       localStorage.setItem('attendanceSessions', JSON.stringify(sessions));
-      
-      console.log('✅ Attendance submitted:', studentData);
       
       setTimeout(() => {
         setLoading(false);
@@ -203,10 +135,10 @@ export default function StudentAttendancePage() {
 
   if (!session && !error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl p-8 text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading session...</p>
+      <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center p-3 sm:p-4">
+        <div className="bg-white rounded-xl sm:rounded-2xl p-6 sm:p-8 text-center">
+          <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-blue-600 mx-auto mb-3 sm:mb-4"></div>
+          <p className="text-sm sm:text-base text-gray-600">Loading session...</p>
         </div>
       </div>
     );
@@ -214,15 +146,15 @@ export default function StudentAttendancePage() {
 
   if (error && !session) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-red-500 via-pink-600 to-purple-600 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl p-8 max-w-md w-full text-center">
-          <div className="bg-red-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-12 h-12 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="min-h-screen bg-gradient-to-br from-red-500 via-pink-600 to-purple-600 flex items-center justify-center p-3 sm:p-4">
+        <div className="bg-white rounded-xl sm:rounded-2xl p-6 sm:p-8 max-w-md w-full text-center">
+          <div className="bg-red-100 w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+            <svg className="w-10 h-10 sm:w-12 sm:h-12 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Session Not Found</h2>
-          <p className="text-gray-600">{error}</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">Session Not Found</h2>
+          <p className="text-sm sm:text-base text-gray-600">{error}</p>
         </div>
       </div>
     );
@@ -230,153 +162,152 @@ export default function StudentAttendancePage() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-500 via-emerald-600 to-teal-700 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center">
-          <div className="bg-green-100 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6">
-            <svg className="w-16 h-16 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="min-h-screen bg-gradient-to-br from-green-500 via-emerald-600 to-teal-700 flex items-center justify-center p-3 sm:p-4">
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-6 sm:p-8 max-w-md w-full text-center">
+          <div className="bg-green-100 w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+            <svg className="w-12 h-12 sm:w-16 sm:h-16 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h2 className="text-3xl font-bold text-gray-800 mb-4">Attendance Submitted! ✓</h2>
-          <p className="text-gray-600 mb-2">Successfully recorded</p>
-          <div className="bg-blue-50 rounded-lg p-4 mt-6">
-            <p className="text-sm text-gray-700"><strong>Name:</strong> {formData.fullName}</p>
-            <p className="text-sm text-gray-700"><strong>Reg:</strong> {formData.regNumber}</p>
-            <p className="text-sm text-gray-700"><strong>Dept:</strong> {formData.department}</p>
-            <p className="text-sm text-gray-700"><strong>Level:</strong> {formData.level}</p>
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-3 sm:mb-4">Attendance Submitted! ✓</h2>
+          <p className="text-sm sm:text-base text-gray-600 mb-2">Successfully recorded for</p>
+          <div className="bg-blue-50 rounded-lg p-3 sm:p-4 mt-4 sm:mt-6">
+            <p className="text-base sm:text-lg font-bold text-blue-700 mb-1 sm:mb-2">{session.courseName}</p>
+            <p className="text-xs sm:text-sm text-gray-600 mb-2 sm:mb-3">{session.courseCode}</p>
+            <hr className="my-2 sm:my-3" />
+            <div className="space-y-1 sm:space-y-1.5 text-left">
+              <p className="text-xs sm:text-sm text-gray-700"><strong>Name:</strong> {formData.fullName}</p>
+              <p className="text-xs sm:text-sm text-gray-700"><strong>Reg:</strong> {formData.regNumber}</p>
+              <p className="text-xs sm:text-sm text-gray-700"><strong>Dept:</strong> {session.department}</p>
+              <p className="text-xs sm:text-sm text-gray-700"><strong>Level:</strong> {session.level}</p>
+            </div>
           </div>
-          <p className="text-xs text-gray-500 mt-6">You can close this page</p>
+          <p className="text-xs text-gray-500 mt-4 sm:mt-6">You can close this page</p>
         </div>
       </div>
     );
   }
 
-  const progress = Object.values(formData).filter(Boolean).length / 4 * 100;
+  const progress = Object.values(formData).filter(Boolean).length / 2 * 100;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl w-full">
-        <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Mark Attendance</h1>
-          <p className="text-gray-600">Smart Attendance System</p>
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center p-3 sm:p-4 py-4 sm:py-6">
+      <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-5 sm:p-8 max-w-2xl w-full">
+        <div className="text-center mb-5 sm:mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-1 sm:mb-2">✅ Mark Attendance</h1>
+          <p className="text-sm sm:text-base text-gray-600">Quick & Easy - Just 2 Fields!</p>
         </div>
 
-        <div className="bg-blue-50 rounded-lg p-4 mb-6">
-          <div className="grid grid-cols-2 gap-4">
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg sm:rounded-xl p-4 sm:p-5 mb-5 sm:mb-6 border-2 border-blue-200">
+          <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 sm:gap-4 mb-3">
             <div>
-              <p className="text-xs text-gray-600">Course:</p>
-              <p className="font-bold text-gray-800">{session.courseName}</p>
+              <p className="text-xs text-gray-600 font-semibold">Course</p>
+              <p className="font-bold text-gray-800 text-base sm:text-lg break-words">{session.courseName}</p>
             </div>
             <div>
-              <p className="text-xs text-gray-600">Code:</p>
-              <p className="font-bold text-gray-800">{session.courseCode}</p>
+              <p className="text-xs text-gray-600 font-semibold">Code</p>
+              <p className="font-bold text-gray-800 text-base sm:text-lg">{session.courseCode}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 pt-3 border-t border-blue-200">
+            <div>
+              <p className="text-xs text-blue-600 font-semibold">Department</p>
+              <p className="font-bold text-blue-700 text-sm sm:text-base break-words">{session.department}</p>
+            </div>
+            <div>
+              <p className="text-xs text-purple-600 font-semibold">Level</p>
+              <p className="font-bold text-purple-700 text-sm sm:text-base">{session.level}</p>
             </div>
           </div>
         </div>
 
-        <div className="mb-6">
-          <div className="flex justify-between text-sm mb-2">
+        <div className="mb-5 sm:mb-6">
+          <div className="flex justify-between text-xs sm:text-sm mb-2">
             <span className="text-gray-600">Form Progress</span>
             <span className="font-bold text-blue-600">{Math.round(progress)}%</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
+          <div className="w-full bg-gray-200 rounded-full h-2 sm:h-2.5">
             <div 
-              className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+              className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 sm:h-2.5 rounded-full transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
           </div>
         </div>
 
-        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 rounded">
-          <div className="flex items-center gap-2">
-            <svg className="w-5 h-5 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 sm:p-4 mb-5 sm:mb-6 rounded">
+          <div className="flex items-start sm:items-center gap-2">
+            <svg className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5 sm:mt-0" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd"/>
             </svg>
-            <div>
-              <p className="text-sm font-bold text-yellow-800">Time: {timeLeft}</p>
-              <p className="text-xs text-yellow-700">Submit before expiry</p>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-yellow-800">Time Remaining: {timeLeft}</p>
+              <p className="text-xs text-yellow-700">Submit before time expires</p>
             </div>
           </div>
         </div>
 
         {formData.fullName && (
-          <div className="bg-green-50 border-l-4 border-green-400 p-3 mb-6 rounded">
-            <p className="text-sm text-green-700">✨ Auto-filled! Verify and submit.</p>
+          <div className="bg-green-50 border-l-4 border-green-400 p-2.5 sm:p-3 mb-5 sm:mb-6 rounded">
+            <p className="text-xs sm:text-sm text-green-700">✨ Form auto-saved! Verify and submit.</p>
           </div>
         )}
 
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded">
-            <p className="text-sm text-red-700 font-medium">{error}</p>
+          <div className="bg-red-50 border-l-4 border-red-500 p-3 sm:p-4 mb-5 sm:mb-6 rounded">
+            <p className="text-xs sm:text-sm text-red-700 font-medium break-words">{error}</p>
           </div>
         )}
 
-        <div className="space-y-5">
+        <div className="space-y-4 sm:space-y-5">
           <div>
-            <label className="block text-gray-700 font-bold mb-2">Full Name *</label>
+            <label className="block text-gray-700 font-bold mb-1.5 sm:mb-2 text-base sm:text-lg">
+              📝 Full Name <span className="text-red-500">*</span>
+            </label>
             <input
               type="text"
               name="fullName"
               value={formData.fullName}
               onChange={handleChange}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white text-gray-900 text-lg"
+              className="w-full px-4 sm:px-5 py-3 sm:py-4 border-2 border-gray-300 rounded-lg sm:rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white text-gray-900 text-base sm:text-lg"
               placeholder="Abubakar Mohammed Ibrahim"
+              autoComplete="name"
             />
+            <p className="text-xs text-gray-500 mt-1">Enter your full name as registered</p>
           </div>
 
           <div>
-            <label className="block text-gray-700 font-bold mb-2">Registration Number *</label>
+            <label className="block text-gray-700 font-bold mb-1.5 sm:mb-2 text-base sm:text-lg">
+              🎓 Registration Number <span className="text-red-500">*</span>
+            </label>
             <input
               type="text"
               name="regNumber"
               value={formData.regNumber}
               onChange={handleChange}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white text-gray-900 text-lg font-mono"
+              className="w-full px-4 sm:px-5 py-3 sm:py-4 border-2 border-gray-300 rounded-lg sm:rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white text-gray-900 text-lg sm:text-xl font-mono uppercase"
               placeholder="UG24SEN1051"
+              autoComplete="off"
             />
-            <p className="text-xs text-gray-500 mt-1">Format: UG24SEN1051</p>
-          </div>
-
-          <div>
-            <label className="block text-gray-700 font-bold mb-2">Department *</label>
-            <select
-              name="department"
-              value={formData.department}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white text-gray-900 text-lg"
-            >
-              <option value="">Select Department</option>
-              {departments.map(dept => (
-                <option key={dept} value={dept}>{dept}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-gray-700 font-bold mb-2">Level *</label>
-            <select
-              name="level"
-              value={formData.level}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white text-gray-900 text-lg"
-            >
-              <option value="">Select Level</option>
-              {levels.map(level => (
-                <option key={level} value={level}>{level}</option>
-              ))}
-            </select>
+            <p className="text-xs text-gray-500 mt-1 break-words">Format: UG24SEN1051 (Auto-assigned: {session.department} • {session.level})</p>
           </div>
 
           <button
             onClick={handleSubmit}
             disabled={loading || timeLeft === 'Expired'}
-            className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-4 rounded-xl font-bold text-lg hover:from-green-600 hover:to-emerald-700 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-4 sm:py-5 rounded-lg sm:rounded-xl font-bold text-lg sm:text-xl hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98]"
           >
-            {loading ? '⏳ Submitting...' : '✅ Submit Attendance'}
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                Submitting...
+              </span>
+            ) : (
+              '✅ Submit Attendance'
+            )}
           </button>
 
-          <p className="text-center text-sm text-gray-600 mt-4">
-            ⚠️ You can only submit once per session
+          <p className="text-center text-xs sm:text-sm text-gray-600 mt-3 sm:mt-4 bg-gray-50 p-2.5 sm:p-3 rounded-lg">
+            ⚠️ <strong>Important:</strong> You can only submit once per session. Department and level are automatically assigned from the session.
           </p>
         </div>
       </div>

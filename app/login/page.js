@@ -130,73 +130,78 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-purple-800 flex items-center justify-center px-4 py-8">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 md:p-12 max-w-md w-full">
-        <div className="text-center mb-8">
-          <div className="bg-blue-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-purple-800 flex items-center justify-center px-3 sm:px-4 py-4 sm:py-8">
+      <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-5 sm:p-8 md:p-12 max-w-md w-full">
+        {/* Header */}
+        <div className="text-center mb-6 sm:mb-8">
+          <div className="bg-blue-100 w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+            <svg className="w-8 h-8 sm:w-10 sm:h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Smart Attendance</h1>
-          <p className="text-gray-600">Universal Attendance System</p>
-          <p className="text-sm text-gray-500 mt-1">For Schools, Colleges & Universities</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-1 sm:mb-2">Smart Attendance</h1>
+          <p className="text-sm sm:text-base text-gray-600">Universal Attendance System</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">For Schools, Colleges & Universities</p>
         </div>
 
+        {/* Error Message */}
         {error && (
-          <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded">
-            <p className="text-sm text-red-700 font-medium">{error}</p>
+          <div className="mb-4 sm:mb-6 bg-red-50 border-l-4 border-red-500 p-3 sm:p-4 rounded">
+            <p className="text-xs sm:text-sm text-red-700 font-medium">{error}</p>
           </div>
         )}
 
-        <div className="space-y-3 mb-6">
+        {/* OAuth Buttons */}
+        <div className="space-y-2.5 sm:space-y-3 mb-5 sm:mb-6">
           <button
             onClick={() => handleOAuthClick('google')}
             disabled={loading}
-            className="w-full bg-white border-2 border-gray-300 text-gray-700 py-3.5 rounded-xl font-semibold hover:bg-gray-50 transition shadow-md disabled:opacity-50 flex items-center justify-center gap-3"
+            className="w-full bg-white border-2 border-gray-300 text-gray-700 py-2.5 sm:py-3.5 rounded-lg sm:rounded-xl text-sm sm:text-base font-semibold hover:bg-gray-50 transition shadow-md disabled:opacity-50 flex items-center justify-center gap-2 sm:gap-3"
           >
             {providerInfo.google.icon}
-            <span>Continue with Google</span>
-            <span className="text-green-600">⚡</span>
+            <span className="truncate">Continue with Google</span>
+            <span className="text-green-600 flex-shrink-0">⚡</span>
           </button>
 
           <button
             onClick={() => handleOAuthClick('microsoft')}
             disabled={loading}
-            className="w-full bg-white border-2 border-gray-300 text-gray-700 py-3.5 rounded-xl font-semibold hover:bg-gray-50 transition shadow-md disabled:opacity-50 flex items-center justify-center gap-3"
+            className="w-full bg-white border-2 border-gray-300 text-gray-700 py-2.5 sm:py-3.5 rounded-lg sm:rounded-xl text-sm sm:text-base font-semibold hover:bg-gray-50 transition shadow-md disabled:opacity-50 flex items-center justify-center gap-2 sm:gap-3"
           >
             {providerInfo.microsoft.icon}
-            <span>Continue with Microsoft</span>
-            <span className="text-blue-600">⚡</span>
+            <span className="truncate">Continue with Microsoft</span>
+            <span className="text-blue-600 flex-shrink-0">⚡</span>
           </button>
 
           <button
             onClick={() => handleOAuthClick('facebook')}
             disabled={loading}
-            className="w-full bg-white border-2 border-gray-300 text-gray-700 py-3.5 rounded-xl font-semibold hover:bg-gray-50 transition shadow-md disabled:opacity-50 flex items-center justify-center gap-3"
+            className="w-full bg-white border-2 border-gray-300 text-gray-700 py-2.5 sm:py-3.5 rounded-lg sm:rounded-xl text-sm sm:text-base font-semibold hover:bg-gray-50 transition shadow-md disabled:opacity-50 flex items-center justify-center gap-2 sm:gap-3"
           >
             {providerInfo.facebook.icon}
-            <span>Continue with Facebook</span>
-            <span className="text-indigo-600">⚡</span>
+            <span className="truncate">Continue with Facebook</span>
+            <span className="text-indigo-600 flex-shrink-0">⚡</span>
           </button>
         </div>
 
-        <div className="relative my-6">
+        {/* Divider */}
+        <div className="relative my-5 sm:my-6">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-gray-300"></div>
           </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-4 bg-white text-gray-500">Or use email & password</span>
+          <div className="relative flex justify-center text-xs sm:text-sm">
+            <span className="px-3 sm:px-4 bg-white text-gray-500">Or use email & password</span>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Login Form */}
+        <div className="space-y-3.5 sm:space-y-4">
           <div>
-            <label className="block text-gray-700 font-semibold mb-2 text-sm">📧 Email Address</label>
+            <label className="block text-gray-700 font-semibold mb-1.5 sm:mb-2 text-xs sm:text-sm">📧 Email Address</label>
             <input
               type="email"
               required
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 transition"
+              className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-gray-300 rounded-lg sm:rounded-xl text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 transition"
               placeholder="lecturer@university.edu"
               value={formData.email}
               onChange={(e) => setFormData({...formData, email: e.target.value})}
@@ -204,18 +209,18 @@ export default function Login() {
           </div>
 
           <div>
-            <label className="block text-gray-700 font-semibold mb-2 text-sm">🔒 Password</label>
+            <label className="block text-gray-700 font-semibold mb-1.5 sm:mb-2 text-xs sm:text-sm">🔒 Password</label>
             <input
               type="password"
               required
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 transition"
+              className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-gray-300 rounded-lg sm:rounded-xl text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 transition"
               placeholder="••••••••"
               value={formData.password}
               onChange={(e) => setFormData({...formData, password: e.target.value})}
             />
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-2 sm:gap-0">
             <div className="flex items-center">
               <input
                 type="checkbox"
@@ -224,24 +229,29 @@ export default function Login() {
                 onChange={(e) => setFormData({...formData, rememberMe: e.target.checked})}
                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
               />
-              <label htmlFor="rememberMe" className="ml-2 text-sm text-gray-700">Remember me</label>
+              <label htmlFor="rememberMe" className="ml-2 text-xs sm:text-sm text-gray-700">Remember me</label>
             </div>
-            <button type="button" className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+            <button 
+              type="button" 
+              onClick={() => window.location.href = '/forgot-password'}
+              className="text-xs sm:text-sm text-blue-600 hover:text-blue-800 font-medium text-left xs:text-right"
+            >
               Forgot password?
             </button>
           </div>
 
           <button
-            type="submit"
+            onClick={handleSubmit}
             disabled={loading}
-            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3.5 rounded-xl font-bold hover:from-blue-700 hover:to-purple-700 transition shadow-lg disabled:opacity-50"
+            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2.5 sm:py-3.5 rounded-lg sm:rounded-xl text-sm sm:text-base font-bold hover:from-blue-700 hover:to-purple-700 transition shadow-lg disabled:opacity-50"
           >
             {loading ? '🔄 Logging in...' : '🔐 Login with Email'}
           </button>
-        </form>
+        </div>
 
-        <div className="mt-6 text-center">
-          <p className="text-gray-600">
+        {/* Register Link */}
+        <div className="mt-5 sm:mt-6 text-center">
+          <p className="text-sm sm:text-base text-gray-600">
             Don't have an account?{' '}
             <a href="/register" className="text-blue-600 hover:text-blue-800 font-semibold underline">
               Register as a Lecturer
@@ -249,60 +259,62 @@ export default function Login() {
           </p>
         </div>
 
-        <div className="mt-8 pt-6 border-t border-gray-200">
-          <div className="flex items-center justify-center gap-2 text-xs text-gray-500 mb-3">
+        {/* Footer */}
+        <div className="mt-6 sm:mt-8 pt-5 sm:pt-6 border-t border-gray-200">
+          <div className="flex items-center justify-center gap-2 text-xs text-gray-500 mb-2 sm:mb-3">
             <span>Secure • Fast • Universal</span>
           </div>
-          <p className="text-xs text-gray-400 text-center">
+          <p className="text-xs text-gray-400 text-center leading-relaxed">
             📚 Students: Click the attendance link shared by your lecturer
           </p>
         </div>
       </div>
 
+      {/* OAuth Modal */}
       {showOAuthModal && selectedProvider && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center mx-auto mb-4">
-                <div className="bg-white rounded-full p-2">
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-3 sm:p-4 z-50">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-md w-full p-5 sm:p-8 max-h-[90vh] overflow-y-auto">
+            <div className="text-center mb-5 sm:mb-6">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                <div className="bg-white rounded-full p-1.5 sm:p-2">
                   {providerInfo[selectedProvider].icon}
                 </div>
               </div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-2">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-1.5 sm:mb-2">
                 Sign in with {providerInfo[selectedProvider].name}
               </h2>
-              <p className="text-gray-600 text-sm">Enter your {providerInfo[selectedProvider].name} email</p>
+              <p className="text-gray-600 text-xs sm:text-sm">Enter your {providerInfo[selectedProvider].name} email</p>
             </div>
 
             {error && (
-              <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-3 rounded">
-                <p className="text-sm text-red-700">{error}</p>
+              <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-2.5 sm:p-3 rounded">
+                <p className="text-xs sm:text-sm text-red-700">{error}</p>
               </div>
             )}
 
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+            <div className="mb-5 sm:mb-6">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Email Address</label>
               <input
                 type="email"
                 value={oauthEmail}
                 onChange={(e) => setOauthEmail(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleOAuthLogin()}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-gray-300 rounded-lg text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                 placeholder="your.email@gmail.com"
                 autoFocus
               />
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="text-xs text-gray-500 mt-1.5 sm:mt-2">
                 Use the {providerInfo[selectedProvider].name} email you registered with
               </p>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-col xs:flex-row gap-2.5 sm:gap-3">
               <button
                 onClick={() => {
                   setShowOAuthModal(false);
                   setError('');
                 }}
-                className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-300 transition"
+                className="flex-1 bg-gray-200 text-gray-700 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-semibold hover:bg-gray-300 transition"
                 disabled={loading}
               >
                 Cancel
@@ -310,7 +322,7 @@ export default function Login() {
               <button
                 onClick={handleOAuthLogin}
                 disabled={loading || !oauthEmail}
-                className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50"
+                className="flex-1 bg-blue-600 text-white py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-semibold hover:bg-blue-700 transition disabled:opacity-50"
               >
                 {loading ? 'Signing in...' : 'Continue'}
               </button>

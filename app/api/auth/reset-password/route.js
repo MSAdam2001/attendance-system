@@ -6,7 +6,14 @@ export async function POST(request) {
   try {
     const { email, code, newPassword } = await request.json();
 
-    if (!newPassword || newPassword.length < 6) {
+    if (!email || !code || !newPassword) {
+      return NextResponse.json({
+        success: false,
+        message: 'All fields are required'
+      }, { status: 400 });
+    }
+
+    if (newPassword.length < 6) {
       return NextResponse.json({
         success: false,
         message: 'Password must be at least 6 characters'
@@ -16,18 +23,20 @@ export async function POST(request) {
     const client = await clientPromise;
     const db = client.db('attendance_system');
     
-    const lecturer = await db.collection('lecturers').findOne({ 
-      email: email.toLowerCase().trim() 
+    const resetRecord = await db.collection('password_resets').findOne({
+      email: email.toLowerCase().trim(),
+      code: code.trim(),
+      used: false
     });
 
-    if (!lecturer || lecturer.resetCode !== code) {
+    if (!resetRecord) {
       return NextResponse.json({
         success: false,
-        message: 'Invalid reset request'
+        message: 'Invalid reset code'
       }, { status: 400 });
     }
 
-    if (new Date() > new Date(lecturer.resetCodeExpiry)) {
+    if (new Date() > new Date(resetRecord.expiresAt)) {
       return NextResponse.json({
         success: false,
         message: 'Reset code has expired'
@@ -37,16 +46,17 @@ export async function POST(request) {
     // Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Update password and clear reset code
+    // Update password
     await db.collection('lecturers').updateOne(
       { email: email.toLowerCase().trim() },
-      { 
-        $set: { password: hashedPassword },
-        $unset: { resetCode: '', resetCodeExpiry: '' }
-      }
+      { $set: { password: hashedPassword } }
     );
 
-    console.log('✅ Password reset successful for:', email);
+    // Mark code as used
+    await db.collection('password_resets').updateOne(
+      { email: email.toLowerCase().trim(), code: code.trim() },
+      { $set: { used: true } }
+    );
 
     return NextResponse.json({
       success: true,
@@ -57,7 +67,7 @@ export async function POST(request) {
     console.error('Reset password error:', error);
     return NextResponse.json({
       success: false,
-      message: 'Failed to reset password'
+      message: 'Password reset failed'
     }, { status: 500 });
   }
 }

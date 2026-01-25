@@ -1,353 +1,257 @@
-"use client";
+"use client"
 
-import React, { useState, useEffect } from 'react';
-import { Download, Search, TrendingUp, TrendingDown, Award, AlertTriangle } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
-export default function AttendanceAnalytics() {
+export default function SimpleAnalytics() {
+  const [students, setStudents] = useState([]);
   const [sessions, setSessions] = useState([]);
-  const [studentStats, setStudentStats] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterBy, setFilterBy] = useState('all');
-  const [sortBy, setSortBy] = useState('percentage');
+  const [lecturer, setLecturer] = useState(null);
 
   useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = () => {
-    const savedSessions = localStorage.getItem('attendanceSessions');
-    if (savedSessions) {
-      const allSessions = JSON.parse(savedSessions);
-      setSessions(allSessions);
-      calculateStudentStats(allSessions);
+    const lecturerData = localStorage.getItem('lecturer');
+    const token = localStorage.getItem('token');
+    
+    if (!lecturerData || !token) {
+      window.location.href = '/login';
+      return;
     }
-  };
 
-  const calculateStudentStats = (allSessions) => {
+    const parsedLecturer = JSON.parse(lecturerData);
+    setLecturer(parsedLecturer);
+
+    const allSessions = JSON.parse(localStorage.getItem('attendanceSessions') || '[]');
+    const lecturerSessions = allSessions.filter(s => s.lecturerId === parsedLecturer.id);
+    setSessions(lecturerSessions);
+
     const studentMap = new Map();
-    const totalSessions = allSessions.length;
-
-    allSessions.forEach(session => {
+    lecturerSessions.forEach(session => {
       session.students?.forEach(student => {
-        const key = student.regNumber;
-        
-        if (!studentMap.has(key)) {
-          studentMap.set(key, {
+        if (!studentMap.has(student.regNumber)) {
+          studentMap.set(student.regNumber, {
             regNumber: student.regNumber,
             fullName: student.fullName,
             department: student.department,
-            level: student.level,
-            attendedSessions: 0,
-            missedSessions: 0,
-            totalSessions: totalSessions,
-            sessionDetails: []
+            level: student.level || '100 Level',
+            attended: [],
+            total: 0
           });
         }
-
-        const studentData = studentMap.get(key);
-        studentData.attendedSessions += 1;
-        studentData.sessionDetails.push({
-          courseName: session.courseName,
-          courseCode: session.courseCode,
-          date: session.createdAt,
-          timestamp: student.timestamp
+        studentMap.get(student.regNumber).attended.push({
+          date: new Date(student.timestamp).toLocaleDateString(),
+          time: new Date(student.timestamp).toLocaleTimeString()
         });
+        studentMap.get(student.regNumber).total += 1;
       });
     });
 
-    // Calculate missed sessions
-    studentMap.forEach((student, key) => {
-      student.missedSessions = totalSessions - student.attendedSessions;
-      student.percentage = totalSessions > 0 
-        ? ((student.attendedSessions / totalSessions) * 100).toFixed(1)
-        : 0;
-      
-      // Determine status
-      if (student.percentage >= 75) {
-        student.status = 'Excellent';
-        student.statusColor = 'text-green-600 bg-green-100';
-      } else if (student.percentage >= 50) {
-        student.status = 'Good';
-        student.statusColor = 'text-blue-600 bg-blue-100';
-      } else if (student.percentage >= 30) {
-        student.status = 'Poor';
-        student.statusColor = 'text-yellow-600 bg-yellow-100';
-      } else {
-        student.status = 'Critical';
-        student.statusColor = 'text-red-600 bg-red-100';
-      }
-    });
+    const studentList = Array.from(studentMap.values()).map(student => ({
+      ...student,
+      missed: lecturerSessions.length - student.total,
+      totalSessions: lecturerSessions.length,
+      percentage: lecturerSessions.length > 0 ? ((student.total / lecturerSessions.length) * 100).toFixed(1) : 0
+    })).sort((a, b) => b.percentage - a.percentage);
 
-    const stats = Array.from(studentMap.values());
-    setStudentStats(stats);
+    setStudents(studentList);
+  }, []);
+
+  const getStatus = (percentage) => {
+    if (percentage >= 75) return 'Excellent';
+    if (percentage >= 50) return 'Good';
+    return 'Poor';
   };
 
-  const filteredStudents = studentStats
-    .filter(student => {
-      const matchesSearch = 
-        student.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        student.regNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        student.department.toLowerCase().includes(searchTerm.toLowerCase());
+  const exportToExcel = () => {
+    // Create proper Excel-formatted CSV
+    const rows = [
+      // Header Information (spanning across columns for better visibility)
+      ['SEMESTER ATTENDANCE REPORT', '', '', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', '', '', ''],
+      ['Generated:', new Date().toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }), '', '', '', '', '', '', ''],
+      ['Lecturer:', lecturer?.name || '', '', '', '', '', '', '', ''],
+      ['Department:', lecturer?.department || '', '', '', '', '', '', '', ''],
+      ['Total Students:', students.length, '', '', '', '', '', '', ''],
+      ['Total Sessions:', sessions.length, '', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', '', '', ''],
+      // Column Headers
+      ['Reg Number', 'Full Name', 'Department', 'Level', 'Attended', 'Missed', 'Total', 'Percentage', 'Status'],
+      // Student Data
+      ...students.map(student => [
+        student.regNumber,
+        student.fullName,
+        student.department,
+        student.level,
+        student.total,
+        student.missed,
+        student.totalSessions,
+        `${student.percentage}%`,
+        getStatus(parseFloat(student.percentage))
+      ])
+    ];
 
-      if (filterBy === 'all') return matchesSearch;
-      if (filterBy === 'excellent') return matchesSearch && student.percentage >= 75;
-      if (filterBy === 'good') return matchesSearch && student.percentage >= 50 && student.percentage < 75;
-      if (filterBy === 'poor') return matchesSearch && student.percentage >= 30 && student.percentage < 50;
-      if (filterBy === 'critical') return matchesSearch && student.percentage < 30;
-      
-      return matchesSearch;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'percentage') return parseFloat(b.percentage) - parseFloat(a.percentage);
-      if (sortBy === 'name') return a.fullName.localeCompare(b.fullName);
-      if (sortBy === 'regNumber') return a.regNumber.localeCompare(b.regNumber);
-      if (sortBy === 'department') return a.department.localeCompare(b.department);
-      return 0;
-    });
+    // Convert to CSV with proper formatting
+    const csvContent = rows.map(row => 
+      row.map(cell => {
+        // Handle cells that might contain commas or quotes
+        const cellStr = String(cell);
+        if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+          return `"${cellStr.replace(/"/g, '""')}"`;
+        }
+        return cellStr;
+      }).join(',')
+    ).join('\n');
 
-  const exportToCSV = () => {
-    const headers = ['Reg Number', 'Full Name', 'Department', 'Level', 'Attended', 'Missed', 'Total', 'Percentage', 'Status'];
-    const rows = filteredStudents.map(student => [
-      student.regNumber,
-      student.fullName,
-      student.department,
-      student.level,
-      student.attendedSessions,
-      student.missedSessions,
-      student.totalSessions,
-      `${student.percentage}%`,
-      student.status
-    ]);
-
-    const csvContent = [
-      'Semester Attendance Report',
-      `Generated: ${new Date().toLocaleString()}`,
-      `Total Students: ${filteredStudents.length}`,
-      `Total Sessions: ${sessions.length}`,
-      '',
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+    // Add BOM for proper Excel UTF-8 support
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Semester_Attendance_Report_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Attendance_Report_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
-  const overallStats = {
-    totalStudents: studentStats.length,
-    totalSessions: sessions.length,
-    averageAttendance: studentStats.length > 0
-      ? (studentStats.reduce((acc, s) => acc + parseFloat(s.percentage), 0) / studentStats.length).toFixed(1)
-      : 0,
-    excellentCount: studentStats.filter(s => s.percentage >= 75).length,
-    goodCount: studentStats.filter(s => s.percentage >= 50 && s.percentage < 75).length,
-    poorCount: studentStats.filter(s => s.percentage >= 30 && s.percentage < 50).length,
-    criticalCount: studentStats.filter(s => s.percentage < 30).length
-  };
+  if (!lecturer) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 p-3 sm:p-4 md:p-6 lg:p-8">
+      <div className="max-w-6xl mx-auto">
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-4 sm:p-6 lg:p-8">
+          {/* Header Section */}
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 sm:mb-8">
             <div>
-              <h1 className="text-4xl font-bold text-gray-800">📊 Attendance Analytics</h1>
-              <p className="text-gray-600 mt-2">Semester Performance Report</p>
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-800 mb-1 sm:mb-2">📊 Attendance Report</h1>
+              <p className="text-xs sm:text-sm lg:text-base text-gray-600 break-words">
+                Lecturer: {lecturer.name} • {lecturer.department}
+              </p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-col xs:flex-row gap-2 sm:gap-3">
               <button
                 onClick={() => window.location.href = '/dashboard'}
-                className="bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-700 transition"
+                className="bg-gray-500 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg text-sm sm:text-base hover:bg-gray-600 transition"
               >
                 ← Back
               </button>
               <button
-                onClick={exportToCSV}
-                disabled={filteredStudents.length === 0}
-                className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition flex items-center gap-2 disabled:opacity-50"
+                onClick={exportToExcel}
+                className="bg-green-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg text-sm sm:text-base hover:bg-green-700 transition flex items-center justify-center gap-2"
               >
-                <Download className="w-5 h-5" />
-                Export Report
+                📥 <span className="hidden xs:inline">Export to</span> Excel
               </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-blue-500">
-              <p className="text-gray-600 text-sm font-medium">Total Students</p>
-              <p className="text-3xl font-bold text-gray-800 mt-2">{overallStats.totalStudents}</p>
+          {/* Statistics Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
+            <div className="bg-blue-50 p-4 sm:p-5 lg:p-6 rounded-lg sm:rounded-xl text-center">
+              <p className="text-xs sm:text-sm text-gray-600 font-semibold">Total Students</p>
+              <p className="text-3xl sm:text-4xl font-bold text-blue-600 mt-1 sm:mt-2">{students.length}</p>
             </div>
-
-            <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-purple-500">
-              <p className="text-gray-600 text-sm font-medium">Total Sessions</p>
-              <p className="text-3xl font-bold text-gray-800 mt-2">{overallStats.totalSessions}</p>
+            <div className="bg-purple-50 p-4 sm:p-5 lg:p-6 rounded-lg sm:rounded-xl text-center">
+              <p className="text-xs sm:text-sm text-gray-600 font-semibold">Total Sessions</p>
+              <p className="text-3xl sm:text-4xl font-bold text-purple-600 mt-1 sm:mt-2">{sessions.length}</p>
             </div>
-
-            <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-green-500">
-              <p className="text-gray-600 text-sm font-medium">Average Attendance</p>
-              <p className="text-3xl font-bold text-green-600 mt-2">{overallStats.averageAttendance}%</p>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-yellow-500">
-              <p className="text-gray-600 text-sm font-medium">At Risk Students</p>
-              <p className="text-3xl font-bold text-red-600 mt-2">{overallStats.criticalCount + overallStats.poorCount}</p>
+            <div className="bg-green-50 p-4 sm:p-5 lg:p-6 rounded-lg sm:rounded-xl text-center">
+              <p className="text-xs sm:text-sm text-gray-600 font-semibold">Average Attendance</p>
+              <p className="text-3xl sm:text-4xl font-bold text-green-600 mt-1 sm:mt-2">
+                {students.length > 0 ? (students.reduce((sum, s) => sum + parseFloat(s.percentage), 0) / students.length).toFixed(1) : 0}%
+              </p>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">Performance Distribution</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center p-4 bg-green-50 rounded-lg">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <Award className="w-5 h-5 text-green-600" />
-                  <p className="text-sm font-semibold text-gray-700">Excellent (≥75%)</p>
-                </div>
-                <p className="text-2xl font-bold text-green-600">{overallStats.excellentCount}</p>
-              </div>
-
-              <div className="text-center p-4 bg-blue-50 rounded-lg">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <TrendingUp className="w-5 h-5 text-blue-600" />
-                  <p className="text-sm font-semibold text-gray-700">Good (50-74%)</p>
-                </div>
-                <p className="text-2xl font-bold text-blue-600">{overallStats.goodCount}</p>
-              </div>
-
-              <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <TrendingDown className="w-5 h-5 text-yellow-600" />
-                  <p className="text-sm font-semibold text-gray-700">Poor (30-49%)</p>
-                </div>
-                <p className="text-2xl font-bold text-yellow-600">{overallStats.poorCount}</p>
-              </div>
-
-              <div className="text-center p-4 bg-red-50 rounded-lg">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <AlertTriangle className="w-5 h-5 text-red-600" />
-                  <p className="text-sm font-semibold text-gray-700">Critical (&lt;30%)</p>
-                </div>
-                <p className="text-2xl font-bold text-red-600">{overallStats.criticalCount}</p>
-              </div>
+          {/* Student Cards */}
+          {students.length === 0 ? (
+            <div className="text-center py-12 sm:py-16">
+              <p className="text-gray-500 text-base sm:text-lg">No attendance data available</p>
             </div>
-          </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 sm:gap-4">
+              {students.map((student, idx) => (
+                <div 
+                  key={idx} 
+                  className="bg-gradient-to-r from-white to-gray-50 border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-5 lg:p-6 hover:shadow-lg transition-all duration-300 hover:scale-[1.01]"
+                >
+                  <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-4">
+                    {/* Student Info Section */}
+                    <div className="lg:col-span-2 lg:border-r lg:border-gray-200 lg:pr-4">
+                      <div className="mb-3">
+                        <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide mb-1">Registration Number</p>
+                        <p className="text-base sm:text-lg font-mono font-bold text-blue-600 break-all">{student.regNumber}</p>
+                      </div>
+                      <div className="mb-3">
+                        <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide mb-1">Full Name</p>
+                        <p className="text-sm sm:text-base font-semibold text-gray-900 break-words">{student.fullName}</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide mb-1">Department</p>
+                          <p className="text-xs sm:text-sm text-gray-700 font-medium break-words">{student.department}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide mb-1">Level</p>
+                          <p className="text-xs sm:text-sm text-gray-700 font-medium">{student.level}</p>
+                        </div>
+                      </div>
+                    </div>
 
-          <div className="bg-white rounded-xl shadow-md p-6">
-            <div className="flex flex-col md:flex-row gap-4 mb-6">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="text"
-                  placeholder="Search by name, reg number, or department..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-
-              <select
-                value={filterBy}
-                onChange={(e) => setFilterBy(e.target.value)}
-                className="px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none"
-              >
-                <option value="all">All Students</option>
-                <option value="excellent">Excellent (≥75%)</option>
-                <option value="good">Good (50-74%)</option>
-                <option value="poor">Poor (30-49%)</option>
-                <option value="critical">Critical (&lt;30%)</option>
-              </select>
-
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none"
-              >
-                <option value="percentage">Sort by Percentage</option>
-                <option value="name">Sort by Name</option>
-                <option value="regNumber">Sort by Reg Number</option>
-                <option value="department">Sort by Department</option>
-              </select>
-            </div>
-
-            {filteredStudents.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-gray-500 text-lg">No student records found</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">#</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Reg Number</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Full Name</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Department</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Level</th>
-                      <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase">Attended</th>
-                      <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase">Missed</th>
-                      <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase">Total</th>
-                      <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase">Percentage</th>
-                      <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {filteredStudents.map((student, index) => (
-                      <tr key={student.regNumber} className="hover:bg-gray-50 transition">
-                        <td className="px-4 py-4 text-sm font-medium text-gray-900">{index + 1}</td>
-                        <td className="px-4 py-4 text-sm font-mono font-bold text-gray-900">{student.regNumber}</td>
-                        <td className="px-4 py-4 text-sm font-medium text-gray-900">{student.fullName}</td>
-                        <td className="px-4 py-4 text-sm text-gray-700">{student.department}</td>
-                        <td className="px-4 py-4 text-sm text-gray-700">{student.level}</td>
-                        <td className="px-4 py-4 text-center">
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-700">
-                            {student.attendedSessions}
-                          </span>
-                        </td>
-                        <td className="px-4 py-4 text-center">
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-700">
-                            {student.missedSessions}
-                          </span>
-                        </td>
-                        <td className="px-4 py-4 text-center text-sm font-semibold text-gray-700">
-                          {student.totalSessions}
-                        </td>
-                        <td className="px-4 py-4 text-center">
-                          <div className="flex flex-col items-center">
-                            <span className="text-2xl font-bold" style={{
-                              color: student.percentage >= 75 ? '#10b981' :
-                                     student.percentage >= 50 ? '#3b82f6' :
-                                     student.percentage >= 30 ? '#f59e0b' : '#ef4444'
-                            }}>
-                              {student.percentage}%
-                            </span>
-                            <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                              <div
-                                className="h-2 rounded-full transition-all"
-                                style={{
-                                  width: `${student.percentage}%`,
-                                  backgroundColor: student.percentage >= 75 ? '#10b981' :
-                                                 student.percentage >= 50 ? '#3b82f6' :
-                                                 student.percentage >= 30 ? '#f59e0b' : '#ef4444'
-                                }}
-                              />
+                    {/* Statistics Section */}
+                    <div className="lg:col-span-3">
+                      <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:gap-4 mb-3 sm:mb-4">
+                        <div className="bg-green-50 rounded-lg p-2 sm:p-3 text-center border border-green-200">
+                          <p className="text-xs text-green-700 font-semibold mb-1">Attended</p>
+                          <p className="text-xl sm:text-2xl font-bold text-green-600">{student.total}</p>
+                        </div>
+                        <div className="bg-red-50 rounded-lg p-2 sm:p-3 text-center border border-red-200">
+                          <p className="text-xs text-red-700 font-semibold mb-1">Missed</p>
+                          <p className="text-xl sm:text-2xl font-bold text-red-600">{student.missed}</p>
+                        </div>
+                        <div className="bg-blue-50 rounded-lg p-2 sm:p-3 text-center border border-blue-200">
+                          <p className="text-xs text-blue-700 font-semibold mb-1">Total</p>
+                          <p className="text-xl sm:text-2xl font-bold text-blue-600">{student.totalSessions}</p>
+                        </div>
+                      </div>
+                      
+                      {/* Performance Section */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                        <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3 border border-purple-200">
+                          <p className="text-xs text-purple-700 font-semibold mb-2">Attendance Rate</p>
+                          <div className="flex items-center justify-between">
+                            <p className="text-2xl sm:text-3xl font-bold text-purple-700">{student.percentage}%</p>
+                            <div className={`w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-full flex items-center justify-center ${
+                              student.percentage >= 75 ? 'bg-green-500' :
+                              student.percentage >= 50 ? 'bg-yellow-500' :
+                              'bg-red-500'
+                            }`}>
+                              <span className="text-white text-xl sm:text-2xl font-bold">
+                                {student.percentage >= 75 ? '✓' : student.percentage >= 50 ? '○' : '✕'}
+                              </span>
                             </div>
                           </div>
-                        </td>
-                        <td className="px-4 py-4 text-center">
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${student.statusColor}`}>
-                            {student.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+                        </div>
+                        
+                        <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg p-3 border border-indigo-200">
+                          <p className="text-xs text-indigo-700 font-semibold mb-2">Status</p>
+                          <div className="flex items-center justify-center h-12 sm:h-14 lg:h-16">
+                            <span className={`px-4 sm:px-6 py-2 sm:py-3 rounded-full text-sm sm:text-base font-bold shadow-md ${
+                              student.percentage >= 75 ? 'bg-green-500 text-white' :
+                              student.percentage >= 50 ? 'bg-yellow-500 text-white' :
+                              'bg-red-500 text-white'
+                            }`}>
+                              {getStatus(parseFloat(student.percentage))}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
