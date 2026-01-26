@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AlertCircle, CheckCircle, Lock } from 'lucide-react';
 
+// Separate component that uses useSearchParams
 function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -197,6 +198,7 @@ function ResetPasswordForm() {
   );
 }
 
+// Main component with Suspense boundary
 export default function ResetPasswordPage() {
   return (
     <Suspense fallback={
