@@ -4,7 +4,9 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AlertCircle, CheckCircle, Lock } from 'lucide-react';
 
-// Separate component that uses useSearchParams
+// Force dynamic rendering - THIS IS THE KEY FIX
+export const dynamic = 'force-dynamic';
+
 function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -28,7 +30,6 @@ function ResetPasswordForm() {
     e.preventDefault();
     setError('');
 
-    // Validation
     if (password.length < 8) {
       setError('Password must be at least 8 characters long');
       return;
@@ -198,7 +199,6 @@ function ResetPasswordForm() {
   );
 }
 
-// Main component with Suspense boundary
 export default function ResetPasswordPage() {
   return (
     <Suspense fallback={
