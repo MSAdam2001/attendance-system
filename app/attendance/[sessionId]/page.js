@@ -1,8 +1,12 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 
-export default function StudentAttendancePage({ sessionId }) {
+export default function StudentAttendancePage() {
+  const params = useParams();
+  const sessionId = params?.sessionId;
+
   const [formData, setFormData] = useState({
     fullName: '',
     regNumber: ''
@@ -14,18 +18,23 @@ export default function StudentAttendancePage({ sessionId }) {
   const [timeLeft, setTimeLeft] = useState('');
 
   useEffect(() => {
-    // For demo purposes, create a sample session
-    const sampleSession = {
-      id: sessionId || 'demo123',
-      courseName: 'Computer Science',
-      courseCode: 'CSC 101',
-      department: 'Computer Science',
-      level: '100 Level',
-      expiresAt: new Date(Date.now() + 15 * 60000).toISOString(),
-      students: []
-    };
-    setSession(sampleSession);
+    if (!sessionId) {
+      setError('Invalid attendance link');
+      return;
+    }
+
+    // Load session from localStorage
+    const sessions = JSON.parse(localStorage.getItem('attendanceSessions') || '[]');
+    const foundSession = sessions.find(s => s.id === sessionId);
     
+    if (!foundSession) {
+      setError('Session not found or has been deleted');
+      return;
+    }
+
+    setSession(foundSession);
+    
+    // Check if already submitted
     const savedData = localStorage.getItem(`attendance_${sessionId}`);
     if (savedData) {
       setFormData(JSON.parse(savedData));
@@ -154,7 +163,8 @@ export default function StudentAttendancePage({ sessionId }) {
             </svg>
           </div>
           <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">Session Not Found</h2>
-          <p className="text-sm sm:text-base text-gray-600">{error}</p>
+          <p className="text-sm sm:text-base text-gray-600 mb-4">{error}</p>
+          <p className="text-xs text-gray-500">Please check the link or contact your lecturer</p>
         </div>
       </div>
     );
