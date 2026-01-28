@@ -379,8 +379,7 @@ export default function SimpleDashboard() {
               <button onClick={() => setShowQuickStart(true)} className="bg-blue-600 text-white px-3 xl:px-6 py-2 xl:py-4 rounded-xl font-semibold text-sm xl:text-base hover:bg-blue-700 transition">
                 + Choose Course
               </button>
-              <button   onClick={() => window.location.href = '/analytics'} 
- className="bg-purple-600 text-white px-3 xl:px-6 py-2 xl:py-4 rounded-xl font-semibold text-sm xl:text-base hover:bg-purple-700 transition flex items-center gap-2">
+              <button onClick={() => window.location.href = '/analytics'} className="bg-purple-600 text-white px-3 xl:px-6 py-2 xl:py-4 rounded-xl font-semibold text-sm xl:text-base hover:bg-purple-700 transition flex items-center gap-2">
                 <svg className="w-4 h-4 xl:w-5 xl:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
@@ -422,7 +421,7 @@ export default function SimpleDashboard() {
               <button onClick={() => { setShowQuickStart(true); setShowMobileMenu(false); }} className="w-full bg-blue-600 text-white px-4 py-3 rounded-xl font-semibold hover:bg-blue-700 transition">
                 + Choose Course
               </button>
-              <button onClick={() => { setShowQuickStart(true); setShowMobileMenu(false); } } className="w-full bg-purple-600 text-white px-4 py-3 rounded-xl font-semibold hover:bg-purple-700 transition flex items-center justify-center gap-2">
+              <button onClick={() => { window.location.href = '/analytics'; setShowMobileMenu(false); }} className="w-full bg-purple-600 text-white px-4 py-3 rounded-xl font-semibold hover:bg-purple-700 transition flex items-center justify-center gap-2">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
@@ -602,12 +601,17 @@ export default function SimpleDashboard() {
                 </div>
               )}
             </div>
+            {/* FIXED: Better Cancel button styling */}
             <div className="flex flex-col sm:flex-row gap-3 mt-5 sm:mt-6">
               <button onClick={() => {
                 setShowCreateCourse(false);
                 setNewCourse({ courseName: '', courseCode: '', department: '', level: '', customDepartment: '', customLevel: '', defaultDuration: 15 });
-              }} className="w-full sm:flex-1 bg-gray-200 px-4 sm:px-6 py-3 rounded-lg font-semibold hover:bg-gray-300 text-sm sm:text-base">Cancel</button>
-              <button onClick={createCourse} className="w-full sm:flex-1 bg-blue-600 text-white px-4 sm:px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 text-sm sm:text-base">💾 Save Course</button>
+              }} className="w-full sm:flex-1 bg-red-500 text-white px-4 sm:px-6 py-3 rounded-lg font-semibold hover:bg-red-600 transition shadow-lg text-sm sm:text-base border-2 border-red-600">
+                ✕ Cancel
+              </button>
+              <button onClick={createCourse} className="w-full sm:flex-1 bg-blue-600 text-white px-4 sm:px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition shadow-lg text-sm sm:text-base border-2 border-blue-700">
+                💾 Save Course
+              </button>
             </div>
           </div>
         </div>
@@ -679,13 +683,16 @@ export default function SimpleDashboard() {
                 <button onClick={() => { setShowQuickStart(false); setShowCreateCourse(true); }} className="w-full mt-4 bg-gray-200 px-4 py-2 rounded-lg hover:bg-gray-300 text-sm sm:text-base">+ Add New Course</button>
               </>
             )}
+            {/* FIXED: Better Cancel button styling */}
             <button onClick={() => {
               setShowQuickStart(false);
               setQuickDepartment('');
               setQuickLevel('');
               setQuickCustomDept('');
               setQuickCustomLevel('');
-            }} className="w-full mt-3 text-gray-600 hover:text-gray-800 text-sm sm:text-base">Cancel</button>
+            }} className="w-full mt-3 bg-red-500 text-white px-4 py-3 rounded-lg font-semibold hover:bg-red-600 transition shadow-lg text-sm sm:text-base border-2 border-red-600">
+              ✕ Cancel
+            </button>
           </div>
         </div>
       )}

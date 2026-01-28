@@ -13,6 +13,7 @@ export default function Login() {
   const [showOAuthModal, setShowOAuthModal] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState(null);
   const [oauthEmail, setOauthEmail] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -130,191 +131,268 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-purple-800 flex items-center justify-center px-3 sm:px-4 py-4 sm:py-8">
-      <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-5 sm:p-8 md:p-12 max-w-md w-full">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center px-4 py-8">
+      <div className="bg-white rounded-3xl shadow-2xl p-8 lg:p-12 max-w-md w-full border border-slate-200">
         {/* Header */}
-        <div className="text-center mb-6 sm:mb-8">
-          <div className="bg-blue-100 w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
-            <svg className="w-8 h-8 sm:w-10 sm:h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 mb-4 shadow-lg">
+            <svg className="w-11 h-11 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
             </svg>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-1 sm:mb-2">Smart Attendance</h1>
-          <p className="text-sm sm:text-base text-gray-600">Universal Attendance System</p>
-          <p className="text-xs sm:text-sm text-gray-500 mt-1">For Schools, Colleges & Universities</p>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent mb-2">
+            Welcome Back
+          </h1>
+          <p className="text-slate-600 text-lg">Sign in to your lecturer account</p>
         </div>
 
         {/* Error Message */}
         {error && (
-          <div className="mb-4 sm:mb-6 bg-red-50 border-l-4 border-red-500 p-3 sm:p-4 rounded">
-            <p className="text-xs sm:text-sm text-red-700 font-medium">{error}</p>
+          <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
+            <div className="flex items-center">
+              <svg className="w-5 h-5 text-red-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+              <p className="text-sm text-red-700 font-medium">{error}</p>
+            </div>
           </div>
         )}
 
         {/* OAuth Buttons */}
-        <div className="space-y-2.5 sm:space-y-3 mb-5 sm:mb-6">
+        <div className="space-y-3 mb-6">
           <button
             onClick={() => handleOAuthClick('google')}
             disabled={loading}
-            className="w-full bg-white border-2 border-gray-300 text-gray-700 py-2.5 sm:py-3.5 rounded-lg sm:rounded-xl text-sm sm:text-base font-semibold hover:bg-gray-50 transition shadow-md disabled:opacity-50 flex items-center justify-center gap-2 sm:gap-3"
+            className="w-full bg-white border-2 border-slate-200 text-slate-700 py-3.5 rounded-xl font-semibold hover:border-blue-500 hover:bg-blue-50 transition-all duration-200 shadow-sm disabled:opacity-50 flex items-center justify-center gap-3 group"
           >
             {providerInfo.google.icon}
-            <span className="truncate">Continue with Google</span>
-            <span className="text-green-600 flex-shrink-0">⚡</span>
+            <span>Continue with Google</span>
+            <svg className="w-5 h-5 text-slate-400 group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
           </button>
 
           <button
             onClick={() => handleOAuthClick('microsoft')}
             disabled={loading}
-            className="w-full bg-white border-2 border-gray-300 text-gray-700 py-2.5 sm:py-3.5 rounded-lg sm:rounded-xl text-sm sm:text-base font-semibold hover:bg-gray-50 transition shadow-md disabled:opacity-50 flex items-center justify-center gap-2 sm:gap-3"
+            className="w-full bg-white border-2 border-slate-200 text-slate-700 py-3.5 rounded-xl font-semibold hover:border-blue-600 hover:bg-blue-50 transition-all duration-200 shadow-sm disabled:opacity-50 flex items-center justify-center gap-3 group"
           >
             {providerInfo.microsoft.icon}
-            <span className="truncate">Continue with Microsoft</span>
-            <span className="text-blue-600 flex-shrink-0">⚡</span>
+            <span>Continue with Microsoft</span>
+            <svg className="w-5 h-5 text-slate-400 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
           </button>
 
           <button
             onClick={() => handleOAuthClick('facebook')}
             disabled={loading}
-            className="w-full bg-white border-2 border-gray-300 text-gray-700 py-2.5 sm:py-3.5 rounded-lg sm:rounded-xl text-sm sm:text-base font-semibold hover:bg-gray-50 transition shadow-md disabled:opacity-50 flex items-center justify-center gap-2 sm:gap-3"
+            className="w-full bg-white border-2 border-slate-200 text-slate-700 py-3.5 rounded-xl font-semibold hover:border-blue-700 hover:bg-blue-50 transition-all duration-200 shadow-sm disabled:opacity-50 flex items-center justify-center gap-3 group"
           >
             {providerInfo.facebook.icon}
-            <span className="truncate">Continue with Facebook</span>
-            <span className="text-indigo-600 flex-shrink-0">⚡</span>
+            <span>Continue with Facebook</span>
+            <svg className="w-5 h-5 text-slate-400 group-hover:text-blue-700 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
           </button>
         </div>
 
         {/* Divider */}
-        <div className="relative my-5 sm:my-6">
+        <div className="relative my-8">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-300"></div>
+            <div className="w-full border-t-2 border-slate-200"></div>
           </div>
-          <div className="relative flex justify-center text-xs sm:text-sm">
-            <span className="px-3 sm:px-4 bg-white text-gray-500">Or use email & password</span>
+          <div className="relative flex justify-center">
+            <span className="px-4 bg-white text-slate-500 font-medium">Or sign in with email</span>
           </div>
         </div>
 
         {/* Login Form */}
-        <div className="space-y-3.5 sm:space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Email */}
           <div>
-            <label className="block text-gray-700 font-semibold mb-1.5 sm:mb-2 text-xs sm:text-sm">📧 Email Address</label>
-            <input
-              type="email"
-              required
-              className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-gray-300 rounded-lg sm:rounded-xl text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 transition"
-              placeholder="lecturer@university.edu"
-              value={formData.email}
-              onChange={(e) => setFormData({...formData, email: e.target.value})}
-            />
+            <label className="block text-slate-700 font-semibold mb-2 text-sm">
+              Email Address <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <input
+                type="email"
+                required
+                value={formData.email}
+                onChange={(e) => setFormData({...formData, email: e.target.value})}
+                className="w-full pl-12 pr-4 py-3.5 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-slate-50 text-slate-900 placeholder-slate-400"
+                placeholder="lecturer@university.edu.ng"
+              />
+            </div>
           </div>
 
+          {/* Password */}
           <div>
-            <label className="block text-gray-700 font-semibold mb-1.5 sm:mb-2 text-xs sm:text-sm">🔒 Password</label>
-            <input
-              type="password"
-              required
-              className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-gray-300 rounded-lg sm:rounded-xl text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 transition"
-              placeholder="••••••••"
-              value={formData.password}
-              onChange={(e) => setFormData({...formData, password: e.target.value})}
-            />
+            <label className="block text-slate-700 font-semibold mb-2 text-sm">
+              Password <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <input
+                type={showPassword ? "text" : "password"}
+                required
+                value={formData.password}
+                onChange={(e) => setFormData({...formData, password: e.target.value})}
+                className="w-full pl-12 pr-12 py-3.5 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-slate-50 text-slate-900 placeholder-slate-400"
+                placeholder="Enter your password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                {showPassword ? (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
 
-          <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-2 sm:gap-0">
+          {/* Remember Me & Forgot Password */}
+          <div className="flex items-center justify-between">
             <div className="flex items-center">
               <input
                 type="checkbox"
                 id="rememberMe"
                 checked={formData.rememberMe}
                 onChange={(e) => setFormData({...formData, rememberMe: e.target.checked})}
-                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                className="w-4 h-4 text-blue-600 bg-slate-100 border-slate-300 rounded focus:ring-blue-500 focus:ring-2 transition"
               />
-              <label htmlFor="rememberMe" className="ml-2 text-xs sm:text-sm text-gray-700">Remember me</label>
+              <label htmlFor="rememberMe" className="ml-2 text-sm text-slate-700 font-medium">
+                Remember me
+              </label>
             </div>
             <button 
               type="button" 
               onClick={() => window.location.href = '/forgot-password'}
-              className="text-xs sm:text-sm text-blue-600 hover:text-blue-800 font-medium text-left xs:text-right"
+              className="text-sm text-blue-600 hover:text-blue-700 font-semibold hover:underline transition-all"
             >
               Forgot password?
             </button>
           </div>
 
+          {/* Submit Button */}
           <button
-            onClick={handleSubmit}
+            type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2.5 sm:py-3.5 rounded-lg sm:rounded-xl text-sm sm:text-base font-bold hover:from-blue-700 hover:to-purple-700 transition shadow-lg disabled:opacity-50"
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 rounded-xl font-bold text-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 group"
           >
-            {loading ? '🔄 Logging in...' : '🔐 Login with Email'}
+            {loading ? (
+              <>
+                <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Signing in...</span>
+              </>
+            ) : (
+              <>
+                <span>Sign In</span>
+                <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </>
+            )}
           </button>
-        </div>
+        </form>
 
         {/* Register Link */}
-        <div className="mt-5 sm:mt-6 text-center">
-          <p className="text-sm sm:text-base text-gray-600">
+        <div className="mt-8 text-center">
+          <p className="text-slate-600">
             Don't have an account?{' '}
-            <a href="/register" className="text-blue-600 hover:text-blue-800 font-semibold underline">
+            <a 
+              href="/register" 
+              className="text-blue-600 hover:text-blue-700 font-semibold hover:underline transition-all"
+            >
               Register as a Lecturer
             </a>
           </p>
         </div>
 
         {/* Footer */}
-        <div className="mt-6 sm:mt-8 pt-5 sm:pt-6 border-t border-gray-200">
-          <div className="flex items-center justify-center gap-2 text-xs text-gray-500 mb-2 sm:mb-3">
-            <span>Secure • Fast • Universal</span>
+        <div className="mt-8 pt-6 border-t border-slate-200">
+          <div className="flex items-center justify-center gap-2 text-xs text-slate-500 mb-3">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+            </svg>
+            <span className="font-medium">Secure Login</span>
+            <span>•</span>
+            <span>Fast Access</span>
+            <span>•</span>
+            <span>Universal Platform</span>
           </div>
-          <p className="text-xs text-gray-400 text-center leading-relaxed">
-            📚 Students: Click the attendance link shared by your lecturer
+          <p className="text-xs text-slate-400 text-center leading-relaxed">
+            📚 <span className="font-medium">Students:</span> Click the attendance link shared by your lecturer
           </p>
         </div>
       </div>
 
       {/* OAuth Modal */}
       {showOAuthModal && selectedProvider && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-3 sm:p-4 z-50">
-          <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-md w-full p-5 sm:p-8 max-h-[90vh] overflow-y-auto">
-            <div className="text-center mb-5 sm:mb-6">
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center mx-auto mb-3 sm:mb-4">
-                <div className="bg-white rounded-full p-1.5 sm:p-2">
+        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 transform transition-all animate-slideUp">
+            <div className="text-center mb-6">
+              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <div className="bg-white rounded-xl p-2">
                   {providerInfo[selectedProvider].icon}
                 </div>
               </div>
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-1.5 sm:mb-2">
+              <h2 className="text-2xl font-bold text-slate-800 mb-2">
                 Sign in with {providerInfo[selectedProvider].name}
               </h2>
-              <p className="text-gray-600 text-xs sm:text-sm">Enter your {providerInfo[selectedProvider].name} email</p>
+              <p className="text-slate-600">Enter your {providerInfo[selectedProvider].name} email</p>
             </div>
 
             {error && (
-              <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-2.5 sm:p-3 rounded">
-                <p className="text-xs sm:text-sm text-red-700">{error}</p>
+              <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-3 rounded-lg">
+                <p className="text-sm text-red-700">{error}</p>
               </div>
             )}
 
-            <div className="mb-5 sm:mb-6">
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Email Address</label>
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Email Address</label>
               <input
                 type="email"
                 value={oauthEmail}
                 onChange={(e) => setOauthEmail(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleOAuthLogin()}
-                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-gray-300 rounded-lg text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                className="w-full px-4 py-3.5 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-slate-50 text-slate-900 placeholder-slate-400"
                 placeholder="your.email@gmail.com"
                 autoFocus
               />
-              <p className="text-xs text-gray-500 mt-1.5 sm:mt-2">
+              <p className="text-xs text-slate-500 mt-2">
                 Use the {providerInfo[selectedProvider].name} email you registered with
               </p>
             </div>
 
-            <div className="flex flex-col xs:flex-row gap-2.5 sm:gap-3">
+            <div className="flex gap-3">
               <button
                 onClick={() => {
                   setShowOAuthModal(false);
                   setError('');
                 }}
-                className="flex-1 bg-gray-200 text-gray-700 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-semibold hover:bg-gray-300 transition"
+                className="flex-1 bg-slate-100 text-slate-700 py-3.5 rounded-xl font-semibold hover:bg-slate-200 transition-all"
                 disabled={loading}
               >
                 Cancel
@@ -322,7 +400,7 @@ export default function Login() {
               <button
                 onClick={handleOAuthLogin}
                 disabled={loading || !oauthEmail}
-                className="flex-1 bg-blue-600 text-white py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-semibold hover:bg-blue-700 transition disabled:opacity-50"
+                className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3.5 rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
               >
                 {loading ? 'Signing in...' : 'Continue'}
               </button>

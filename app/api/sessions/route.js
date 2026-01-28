@@ -1,51 +1,12 @@
-// app/api/sessions/route.js
+// app/api/sessions/route.js (Update the POST method)
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 
-// GET - Fetch lecturer's sessions
-export async function GET(request) {
-  try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    
-    if (!token) {
-      return NextResponse.json({
-        success: false,
-        message: 'Unauthorized'
-      }, { status: 401 });
-    }
+// ... Keep existing GET and DELETE methods ...
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const lecturerId = decoded.id;
-
-    const client = await clientPromise;
-    const db = client.db('attendance_system');
-    
-    // Get only this lecturer's sessions
-    const sessions = await db.collection('sessions')
-      .find({ lecturerId })
-      .sort({ createdAt: -1 })
-      .toArray();
-
-    return NextResponse.json({
-      success: true,
-      sessions: sessions.map(s => ({
-        ...s,
-        id: s._id.toString(),
-        _id: undefined
-      }))
-    });
-
-  } catch (error) {
-    console.error('GET sessions error:', error);
-    return NextResponse.json({
-      success: false,
-      message: 'Failed to fetch sessions'
-    }, { status: 500 });
-  }
-}
-
-// POST - Create new session
+// POST - Create new session (UPDATED)
 export async function POST(request) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
@@ -61,12 +22,26 @@ export async function POST(request) {
     const lecturerId = decoded.id;
 
     const body = await request.json();
-    const { courseName, courseCode, duration } = body;
+    const { 
+      courseName, 
+      courseCode, 
+      duration, 
+      latitude, 
+      longitude, 
+      radiusInMeters 
+    } = body;
 
     if (!courseName || !courseCode || !duration) {
       return NextResponse.json({
         success: false,
         message: 'Missing required fields'
+      }, { status: 400 });
+    }
+
+    if (!latitude || !longitude) {
+      return NextResponse.json({
+        success: false,
+        message: 'Location is required to create session'
       }, { status: 400 });
     }
 
@@ -81,6 +56,12 @@ export async function POST(request) {
     const sessionId = Date.now().toString();
     const expiryTime = new Date(Date.now() + duration * 60000);
 
+    // Generate secure token (prevents student link sharing)
+    const secureToken = crypto.randomBytes(32).toString('hex');
+    
+    // Generate 6-digit session PIN
+    const sessionPin = Math.floor(100000 + Math.random() * 900000).toString();
+
     const newSession = {
       id: sessionId,
       lecturerId,
@@ -90,14 +71,28 @@ export async function POST(request) {
       courseName,
       courseCode,
       duration,
+      sessionPin,
+      secureToken, // 🔐 Security token
+      location: {
+        latitude,
+        longitude,
+        radiusInMeters: radiusInMeters || 100 // Default 100 meters
+      },
       createdAt: new Date(),
       expiresAt: expiryTime,
       status: 'active',
       students: [],
-      link: `${process.env.NEXT_PUBLIC_BASE_URL}/attendance/${sessionId}`
+      link: `${process.env.NEXT_PUBLIC_BASE_URL}/attendance/${sessionId}?token=${secureToken}`
     };
 
     await db.collection('sessions').insertOne(newSession);
+
+    console.log('✅ Session created:', {
+      sessionId,
+      pin: sessionPin,
+      radius: newSession.location.radiusInMeters,
+      expiresAt: expiryTime
+    });
 
     return NextResponse.json({
       success: true,
@@ -112,61 +107,6 @@ export async function POST(request) {
     return NextResponse.json({
       success: false,
       message: 'Failed to create session'
-    }, { status: 500 });
-  }
-}
-
-// DELETE - Delete a session
-export async function DELETE(request) {
-  try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    
-    if (!token) {
-      return NextResponse.json({
-        success: false,
-        message: 'Unauthorized'
-      }, { status: 401 });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const lecturerId = decoded.id;
-
-    const { searchParams } = new URL(request.url);
-    const sessionId = searchParams.get('id');
-
-    if (!sessionId) {
-      return NextResponse.json({
-        success: false,
-        message: 'Session ID required'
-      }, { status: 400 });
-    }
-
-    const client = await clientPromise;
-    const db = client.db('attendance_system');
-
-    // Delete only if it belongs to this lecturer
-    const result = await db.collection('sessions').deleteOne({
-      id: sessionId,
-      lecturerId
-    });
-
-    if (result.deletedCount === 0) {
-      return NextResponse.json({
-        success: false,
-        message: 'Session not found or unauthorized'
-      }, { status: 404 });
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: 'Session deleted'
-    });
-
-  } catch (error) {
-    console.error('DELETE session error:', error);
-    return NextResponse.json({
-      success: false,
-      message: 'Failed to delete session'
     }, { status: 500 });
   }
 }
