@@ -19,10 +19,32 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c; // Distance in meters
 }
 
-// Generate device fingerprint from User Agent + IP
+// Generate device fingerprint from User Agent + IP + Browser Features
 function generateDeviceFingerprint(userAgent, ipAddress) {
   const data = `${userAgent}-${ipAddress}`;
   return crypto.createHash('sha256').update(data).digest('hex');
+}
+
+// Validate registration number (flexible format)
+function validateRegNumber(regNumber) {
+  if (!regNumber || regNumber.length < 4) {
+    return { valid: false, message: 'Registration number must be at least 4 characters' };
+  }
+  
+  const hasLetter = /[a-zA-Z]/.test(regNumber);
+  const hasNumber = /\d/.test(regNumber);
+  
+  if (!hasLetter || !hasNumber) {
+    return { valid: false, message: 'Registration number must contain both letters and numbers' };
+  }
+  
+  // Allow letters, numbers, hyphens, slashes, and underscores
+  const validPattern = /^[a-zA-Z0-9\-\/_]+$/;
+  if (!validPattern.test(regNumber)) {
+    return { valid: false, message: 'Registration number contains invalid characters' };
+  }
+  
+  return { valid: true };
 }
 
 export async function POST(request) {
@@ -39,9 +61,15 @@ export async function POST(request) {
       longitude,
     } = body;
 
-    console.log('📝 Attendance submission:', { sessionId, fullName, regNumber });
+    console.log('📝 Attendance submission attempt:', { 
+      sessionId, 
+      fullName, 
+      regNumber,
+      hasToken: !!secureToken,
+      hasLocation: !!(latitude && longitude)
+    });
 
-    // Validate required fields
+    // ===== 1. VALIDATE REQUIRED FIELDS =====
     if (!sessionId || !fullName || !regNumber || !department || !level) {
       return NextResponse.json({
         success: false,
@@ -49,79 +77,142 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    // Get device fingerprint
+    // ===== 2. VALIDATE REGISTRATION NUMBER (FLEXIBLE) =====
+    const regValidation = validateRegNumber(regNumber);
+    if (!regValidation.valid) {
+      return NextResponse.json({
+        success: false,
+        message: regValidation.message
+      }, { status: 400 });
+    }
+
+    // ===== 3. GET DEVICE FINGERPRINT & IP =====
     const userAgent = request.headers.get('user-agent') || '';
-    const ipAddress = request.headers.get('x-forwarded-for') || 
+    const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
                      request.headers.get('x-real-ip') || 
+                     request.headers.get('cf-connecting-ip') || // Cloudflare
                      'unknown';
     const deviceFingerprint = generateDeviceFingerprint(userAgent, ipAddress);
+
+    console.log('🔍 Security check:', {
+      ipAddress,
+      deviceFingerprint: deviceFingerprint.substring(0, 16) + '...',
+      userAgent: userAgent.substring(0, 50) + '...'
+    });
 
     const client = await clientPromise;
     const db = client.db('attendance_system');
 
-    // 1. Get session details
+    // ===== 4. GET SESSION DETAILS =====
     const session = await db.collection('sessions').findOne({ id: sessionId });
 
     if (!session) {
+      console.log('❌ Session not found:', sessionId);
       return NextResponse.json({
         success: false,
         message: 'Invalid attendance session'
       }, { status: 404 });
     }
 
-    // 2. Verify secure token (prevent student link sharing)
+    // ===== 5. VERIFY SECURE TOKEN (PREVENT LINK SHARING) =====
     if (!secureToken || session.secureToken !== secureToken) {
       console.log('❌ Invalid token attempt:', { 
-        provided: secureToken, 
-        expected: session.secureToken 
+        provided: secureToken?.substring(0, 10) + '...', 
+        expected: session.secureToken?.substring(0, 10) + '...',
+        match: secureToken === session.secureToken
       });
+      
+      // Log suspicious activity
+      await db.collection('security_logs').insertOne({
+        type: 'INVALID_TOKEN',
+        sessionId,
+        ipAddress,
+        deviceFingerprint,
+        attemptedRegNumber: regNumber,
+        timestamp: new Date()
+      });
+      
       return NextResponse.json({
         success: false,
-        message: '⚠️ Invalid link! Please use the link shared by your lecturer only.'
+        message: '⚠️ Invalid link! This link can only be used from your lecturer\'s sharing. Student-shared links are blocked for security.'
       }, { status: 403 });
     }
 
-    // 3. Check if session is active and not expired
-    if (session.status !== 'active' || new Date() > new Date(session.expiresAt)) {
+    // ===== 6. CHECK IF SESSION IS ACTIVE AND NOT EXPIRED =====
+    const now = new Date();
+    const expiresAt = new Date(session.expiresAt);
+    
+    if (session.status !== 'active') {
       return NextResponse.json({
         success: false,
-        message: 'This attendance session has expired'
+        message: 'This attendance session is no longer active'
+      }, { status: 400 });
+    }
+    
+    if (now > expiresAt) {
+      // Auto-expire the session
+      await db.collection('sessions').updateOne(
+        { id: sessionId },
+        { $set: { status: 'expired' } }
+      );
+      
+      return NextResponse.json({
+        success: false,
+        message: '⏰ This attendance session has expired'
       }, { status: 400 });
     }
 
-    // 4. Check for duplicate attendance (by regNumber OR deviceFingerprint)
+    // ===== 7. CHECK FOR DUPLICATE ATTENDANCE =====
+    // Check by regNumber OR deviceFingerprint OR ipAddress
     const existingAttendance = await db.collection('attendance_records').findOne({
       sessionId,
       $or: [
-        { regNumber: regNumber },
-        { deviceFingerprint: deviceFingerprint }
+        { regNumber: regNumber.toUpperCase() },
+        { deviceFingerprint: deviceFingerprint },
+        { ipAddress: ipAddress }
       ]
     });
 
     if (existingAttendance) {
-      console.log('⚠️ Duplicate attendance attempt:', { 
+      console.log('⚠️ Duplicate attendance blocked:', { 
         regNumber, 
-        deviceFingerprint,
-        existingRecord: existingAttendance.regNumber
+        deviceFingerprint: deviceFingerprint.substring(0, 16) + '...',
+        ipAddress,
+        previousSubmission: {
+          regNumber: existingAttendance.regNumber,
+          timestamp: existingAttendance.markedAt
+        }
       });
+      
+      // Log duplicate attempt
+      await db.collection('security_logs').insertOne({
+        type: 'DUPLICATE_ATTEMPT',
+        sessionId,
+        regNumber,
+        ipAddress,
+        deviceFingerprint,
+        previousSubmission: existingAttendance.regNumber,
+        timestamp: new Date()
+      });
+      
       return NextResponse.json({
         success: false,
-        message: '❌ You have already marked attendance for this session!'
+        message: '❌ Attendance already recorded! One submission per device/student only.'
       }, { status: 400 });
     }
 
-    // 5. Verify location (distance check)
+    // ===== 8. VERIFY LOCATION (GEOFENCING) =====
     if (!latitude || !longitude) {
       return NextResponse.json({
         success: false,
-        message: '📍 Location access is required to mark attendance'
+        message: '📍 Location access is required to mark attendance. Please enable location and try again.'
       }, { status: 400 });
     }
 
     if (!session.location || !session.location.latitude || !session.location.longitude) {
       return NextResponse.json({
         success: false,
-        message: 'Session location not set by lecturer'
+        message: 'Session location not configured by lecturer'
       }, { status: 400 });
     }
 
@@ -132,32 +223,78 @@ export async function POST(request) {
       longitude
     );
 
+    // Default radius: 100 meters (adjust as needed)
     const allowedRadius = session.location.radiusInMeters || 100;
 
-    console.log('📍 Distance check:', {
+    console.log('📍 Location verification:', {
       studentLocation: { latitude, longitude },
       lecturerLocation: { 
         lat: session.location.latitude, 
         lon: session.location.longitude 
       },
-      distance: Math.round(distance),
-      allowedRadius
+      distance: Math.round(distance) + 'm',
+      allowedRadius: allowedRadius + 'm',
+      withinRange: distance <= allowedRadius
     });
 
     if (distance > allowedRadius) {
+      // Log out-of-range attempt
+      await db.collection('security_logs').insertOne({
+        type: 'OUT_OF_RANGE',
+        sessionId,
+        regNumber,
+        ipAddress,
+        deviceFingerprint,
+        distance: Math.round(distance),
+        allowedRadius,
+        studentLocation: { latitude, longitude },
+        timestamp: new Date()
+      });
+      
       return NextResponse.json({
         success: false,
-        message: `❌ You must be within ${allowedRadius} meters of the classroom. You are ${Math.round(distance)} meters away.`
+        message: `❌ You must be within ${allowedRadius}m of the classroom to mark attendance. You are currently ${Math.round(distance)}m away.`
       }, { status: 400 });
     }
 
-    // 6. Create attendance record
+    // ===== 9. CHECK IF STUDENT CLEARED DATA AND RETRYING =====
+    // Check if same device previously submitted with different regNumber
+    const sameDeviceDifferentStudent = await db.collection('attendance_records').findOne({
+      sessionId,
+      deviceFingerprint,
+      regNumber: { $ne: regNumber.toUpperCase() }
+    });
+
+    if (sameDeviceDifferentStudent) {
+      console.log('⚠️ Device reuse detected:', {
+        currentRegNumber: regNumber,
+        previousRegNumber: sameDeviceDifferentStudent.regNumber,
+        deviceFingerprint: deviceFingerprint.substring(0, 16) + '...'
+      });
+      
+      await db.collection('security_logs').insertOne({
+        type: 'DEVICE_REUSE',
+        sessionId,
+        currentRegNumber: regNumber,
+        previousRegNumber: sameDeviceDifferentStudent.regNumber,
+        deviceFingerprint,
+        ipAddress,
+        timestamp: new Date()
+      });
+      
+      return NextResponse.json({
+        success: false,
+        message: '❌ This device was already used to submit attendance. One device per student only.'
+      }, { status: 400 });
+    }
+
+    // ===== 10. CREATE ATTENDANCE RECORD =====
     const attendanceRecord = {
       sessionId,
       courseCode: session.courseCode,
       courseName: session.courseName,
       studentName: fullName,
-      regNumber,
+      regNumber: regNumber.toUpperCase(), // Standardize to uppercase
       department,
       level,
       deviceFingerprint,
@@ -169,30 +306,33 @@ export async function POST(request) {
       },
       distanceFromLecturer: Math.round(distance),
       markedAt: new Date(),
-      status: 'present'
+      status: 'present',
+      verified: true
     };
 
-    await db.collection('attendance_records').insertOne(attendanceRecord);
+    const insertResult = await db.collection('attendance_records').insertOne(attendanceRecord);
 
-    // 7. Update session students array
+    // ===== 11. UPDATE SESSION STUDENTS ARRAY =====
     await db.collection('sessions').updateOne(
       { id: sessionId },
       {
         $push: {
           students: {
             fullName,
-            regNumber,
+            regNumber: regNumber.toUpperCase(),
             department,
             level,
             timestamp: new Date()
           }
-        }
+        },
+        $inc: { totalPresent: 1 }
       }
     );
 
-    console.log('✅ Attendance recorded:', {
-      regNumber,
-      distance: Math.round(distance),
+    console.log('✅ Attendance recorded successfully:', {
+      id: insertResult.insertedId,
+      regNumber: regNumber.toUpperCase(),
+      distance: Math.round(distance) + 'm',
       timestamp: attendanceRecord.markedAt
     });
 
@@ -201,26 +341,28 @@ export async function POST(request) {
       message: '✅ Attendance marked successfully! 🎉',
       data: {
         studentName: fullName,
-        regNumber,
+        regNumber: regNumber.toUpperCase(),
         markedAt: attendanceRecord.markedAt,
-        distance: Math.round(distance)
+        distance: Math.round(distance),
+        courseName: session.courseName,
+        courseCode: session.courseCode
       }
     });
 
   } catch (error) {
     console.error('❌ Attendance submission error:', error);
 
-    // Handle MongoDB duplicate key error
+    // Handle MongoDB duplicate key error (additional safety)
     if (error.code === 11000) {
       return NextResponse.json({
         success: false,
-        message: '❌ You have already marked attendance for this session!'
+        message: '❌ Duplicate submission detected. You have already marked attendance!'
       }, { status: 400 });
     }
 
     return NextResponse.json({
       success: false,
-      message: 'Failed to submit attendance. Please try again.'
+      message: 'Failed to submit attendance. Please try again or contact your lecturer.'
     }, { status: 500 });
   }
 }

@@ -49,24 +49,157 @@ export default function SimpleDashboard() {
   const [quickCustomDept, setQuickCustomDept] = useState('');
   const [quickCustomLevel, setQuickCustomLevel] = useState('');
 
-  const DEPARTMENTS = [
-    'Computer Science',
-    'Software Engineering',
-    'Information Technology',
-    'Cyber Security',
-    'Data Science',
-    'Business Administration',
-    'Accounting',
-    'Mass Communication',
-    'Engineering',
-    'Medicine',
-    'Nursing',
-    'Pharmacy',
-    'Law',
-    'Education',
-    'Other (Specify)'
-  ];
-
+ const DEPARTMENTS = [
+  // Sciences
+  'Computer Science',
+  'Software Engineering',
+  'Information Technology',
+  'Cyber Security',
+  'Data Science',
+  'Mathematics',
+  'Statistics',
+  'Physics',
+  'Chemistry',
+  'Biology',
+  'Biochemistry',
+  'Microbiology',
+  'Botany',
+  'Zoology',
+  'Geology',
+  'Geophysics',
+  'Geography',
+  'Environmental Science',
+  'Marine Biology',
+  'Biotechnology',
+  'Industrial Chemistry',
+  'Applied Physics',
+  
+  // Engineering
+  'Civil Engineering',
+  'Mechanical Engineering',
+  'Electrical & Electronics Engineering',
+  'Chemical Engineering',
+  'Petroleum Engineering',
+  'Computer Engineering',
+  'Agricultural Engineering',
+  'Structural Engineering',
+  'Systems Engineering',
+  'Marine Engineering',
+  'Metallurgical & Materials Engineering',
+  'Industrial & Production Engineering',
+  'Mechatronics Engineering',
+  'Biomedical Engineering',
+  'Aerospace Engineering',
+  
+  // Medicine & Health
+  'Medicine & Surgery',
+  'Nursing Science',
+  'Pharmacy',
+  'Dentistry',
+  'Veterinary Medicine',
+  'Medical Laboratory Science',
+  'Physiotherapy',
+  'Radiography',
+  'Public Health',
+  'Anatomy',
+  'Physiology',
+  'Pharmacology',
+  'Medical Biochemistry',
+  'Clinical Psychology',
+  
+  // Management Sciences
+  'Business Administration',
+  'Accounting',
+  'Banking & Finance',
+  'Marketing',
+  'Insurance',
+  'Human Resource Management',
+  'Entrepreneurship',
+  'Business Management',
+  'Actuarial Science',
+  'Taxation',
+  
+  // Social Sciences
+  'Economics',
+  'Political Science',
+  'Sociology',
+  'Psychology',
+  'Social Work',
+  'Mass Communication',
+  'International Relations',
+  'Public Administration',
+  'Criminology & Security Studies',
+  'Industrial Relations',
+  'Demography & Social Statistics',
+  'Peace & Conflict Studies',
+  'Development Studies',
+  
+  // Arts & Humanities
+  'English Language & Literature',
+  'History & International Studies',
+  'Philosophy',
+  'Religious Studies',
+  'Linguistics',
+  'French',
+  'Arabic',
+  'Hausa',
+  'Igbo',
+  'Yoruba',
+  'Islamic Studies',
+  'Christian Religious Studies',
+  'Fine Arts',
+  'Music',
+  'Theatre Arts',
+  'Languages & Linguistics',
+  
+  // Education
+  'Education & Biology',
+  'Education & Chemistry',
+  'Education & Mathematics',
+  'Education & Physics',
+  'Education & English',
+  'Education & Economics',
+  'Educational Administration & Planning',
+  'Guidance & Counselling',
+  'Primary Education Studies',
+  'Early Childhood Education',
+  'Adult Education',
+  'Educational Technology',
+  'Library & Information Science',
+  'Physical & Health Education',
+  
+  // Law
+  'Common Law',
+  'Islamic Law',
+  'Commercial Law',
+  'International Law',
+  
+  // Agriculture
+  'Agricultural Economics & Extension',
+  'Animal Science',
+  'Crop Science',
+  'Soil Science',
+  'Forestry & Wildlife',
+  'Fisheries & Aquaculture',
+  'Food Science & Technology',
+  'Home Economics',
+  
+  // Environmental Design
+  'Architecture',
+  'Estate Management',
+  'Urban & Regional Planning',
+  'Surveying & Geoinformatics',
+  'Building Technology',
+  'Quantity Surveying',
+  
+  // Pharmaceutical Sciences
+  'Clinical Pharmacy',
+  'Industrial Pharmacy',
+  'Pharmaceutical Chemistry',
+  
+  // Other
+  'Other (Specify)'
+];
   const LEVELS = [
     '100 Level',
     '200 Level',

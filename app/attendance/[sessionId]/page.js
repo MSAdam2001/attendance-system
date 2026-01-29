@@ -9,13 +9,18 @@ export default function StudentAttendancePage() {
 
   const [formData, setFormData] = useState({
     fullName: '',
-    regNumber: ''
+    regNumber: '',
+    department: '',
+    level: ''
   });
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
   const [timeLeft, setTimeLeft] = useState('');
+  const [location, setLocation] = useState(null);
+  const [locationError, setLocationError] = useState('');
+  const [gettingLocation, setGettingLocation] = useState(false);
 
   useEffect(() => {
     if (!sessionId) {
@@ -23,7 +28,6 @@ export default function StudentAttendancePage() {
       return;
     }
 
-    // Load session from localStorage
     const sessions = JSON.parse(localStorage.getItem('attendanceSessions') || '[]');
     const foundSession = sessions.find(s => s.id === sessionId);
     
@@ -34,11 +38,13 @@ export default function StudentAttendancePage() {
 
     setSession(foundSession);
     
-    // Check if already submitted
-    const savedData = localStorage.getItem(`attendance_${sessionId}`);
-    if (savedData) {
-      setFormData(JSON.parse(savedData));
-    }
+    setFormData(prev => ({
+      ...prev,
+      department: foundSession.department || '',
+      level: foundSession.level || ''
+    }));
+    
+    checkPreviousSubmission();
   }, [sessionId]);
 
   useEffect(() => {
@@ -49,10 +55,63 @@ export default function StudentAttendancePage() {
   }, [session]);
 
   useEffect(() => {
-    if (formData.fullName || formData.regNumber) {
-      localStorage.setItem(`attendance_${sessionId}`, JSON.stringify(formData));
+    if (session && !location) {
+      requestLocation();
     }
-  }, [formData, sessionId]);
+  }, [session]);
+
+  const checkPreviousSubmission = () => {
+    const previousSubmission = localStorage.getItem(`submitted_${sessionId}`);
+    if (previousSubmission) {
+      setError('⚠️ You have already submitted attendance for this session');
+      setSubmitted(true);
+      setFormData(JSON.parse(previousSubmission));
+    }
+  };
+
+  const requestLocation = () => {
+    setGettingLocation(true);
+    setLocationError('');
+
+    if (!navigator.geolocation) {
+      setLocationError('❌ Geolocation is not supported by your browser');
+      setGettingLocation(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        });
+        setGettingLocation(false);
+      },
+      (error) => {
+        let errorMessage = '';
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = '❌ Location access denied. Please enable location to mark attendance.';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = '❌ Location information unavailable.';
+            break;
+          case error.TIMEOUT:
+            errorMessage = '❌ Location request timed out.';
+            break;
+          default:
+            errorMessage = '❌ An unknown error occurred.';
+        }
+        setLocationError(errorMessage);
+        setGettingLocation(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
+  };
 
   const updateTimeLeft = () => {
     if (!session) return;
@@ -76,16 +135,63 @@ export default function StudentAttendancePage() {
       setError('Please enter your full name');
       return false;
     }
+    
     if (!formData.regNumber.trim()) {
       setError('Please enter your registration number');
       return false;
     }
-    const regPattern = /^[A-Z]{2}\d{2}[A-Z]{3}\d{4}$/i;
-    if (!regPattern.test(formData.regNumber.replace(/\s/g, ''))) {
-      setError('Invalid registration number format. Example: UG24SEN1051');
+    
+    // FLEXIBLE VALIDATION - accepts ANY format
+    const regNumber = formData.regNumber.trim();
+    const hasLetter = /[a-zA-Z]/.test(regNumber);
+    const hasNumber = /\d/.test(regNumber);
+    const isValidLength = regNumber.length >= 4;
+    
+    if (!isValidLength) {
+      setError('Registration number must be at least 4 characters long');
       return false;
     }
+    
+    if (!hasLetter || !hasNumber) {
+      setError('Registration number must contain both letters and numbers');
+      return false;
+    }
+    
+    const hasInvalidChars = /[^a-zA-Z0-9\-\/]/.test(regNumber);
+    if (hasInvalidChars) {
+      setError('Registration number can only contain letters, numbers, hyphens (-) and slashes (/)');
+      return false;
+    }
+    
     return true;
+  };
+
+  // Generate device fingerprint
+  const generateDeviceId = (userAgent) => {
+    let hash = 0;
+    const str = userAgent + navigator.language + screen.width + screen.height;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    return 'device_' + Math.abs(hash).toString(36);
+  };
+
+  // Calculate distance between two points
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371e3;
+    const φ1 = (lat1 * Math.PI) / 180;
+    const φ2 = (lat2 * Math.PI) / 180;
+    const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+    const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+    const a =
+      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c;
   };
 
   const handleSubmit = () => {
@@ -98,43 +204,93 @@ export default function StudentAttendancePage() {
       return;
     }
 
-    const alreadySubmitted = session.students?.some(
-      s => s.regNumber === formData.regNumber
-    );
-    
-    if (alreadySubmitted) {
-      setError('⚠️ You have already submitted attendance for this session');
+    if (!location) {
+      setError('📍 Location is required. Please allow location access and try again.');
+      requestLocation();
       return;
     }
 
     setLoading(true);
 
+    const userAgent = navigator.userAgent;
+    const deviceId = generateDeviceId(userAgent);
+
     const sessions = JSON.parse(localStorage.getItem('attendanceSessions') || '[]');
     const sessionIndex = sessions.findIndex(s => s.id === sessionId);
     
-    if (sessionIndex !== -1) {
-      const studentData = {
-        fullName: formData.fullName,
-        regNumber: formData.regNumber,
-        timestamp: new Date().toISOString()
-      };
-      
-      if (!sessions[sessionIndex].students) {
-        sessions[sessionIndex].students = [];
-      }
-      
-      sessions[sessionIndex].students.push(studentData);
-      localStorage.setItem('attendanceSessions', JSON.stringify(sessions));
-      
-      setTimeout(() => {
-        setLoading(false);
-        setSubmitted(true);
-        localStorage.removeItem(`attendance_${sessionId}`);
-      }, 1000);
-    } else {
-      setError('Session not found');
+    if (sessionIndex === -1) {
+      setError('❌ Session not found');
       setLoading(false);
+      return;
     }
+
+    const currentSession = sessions[sessionIndex];
+
+    // Check duplicate registration number
+    const alreadySubmittedByRegNumber = currentSession.students?.some(
+      s => s.regNumber.toUpperCase() === formData.regNumber.toUpperCase()
+    );
+    
+    if (alreadySubmittedByRegNumber) {
+      setError('❌ This registration number has already been used for this session');
+      setLoading(false);
+      return;
+    }
+
+    // Check duplicate device
+    const alreadySubmittedByDevice = currentSession.students?.some(
+      s => s.deviceId === deviceId
+    );
+    
+    if (alreadySubmittedByDevice) {
+      setError('❌ This device has already been used. One device per student only.');
+      setLoading(false);
+      return;
+    }
+
+    // Verify location
+    if (currentSession.location && currentSession.location.latitude && currentSession.location.longitude) {
+      const distance = calculateDistance(
+        currentSession.location.latitude,
+        currentSession.location.longitude,
+        location.latitude,
+        location.longitude
+      );
+
+      const allowedRadius = currentSession.location.radiusInMeters || 100;
+
+      if (distance > allowedRadius) {
+        setError(`❌ You must be within ${allowedRadius}m of the classroom. You are ${Math.round(distance)}m away.`);
+        setLoading(false);
+        return;
+      }
+    }
+
+    const studentData = {
+      fullName: formData.fullName,
+      regNumber: formData.regNumber.toUpperCase(),
+      department: formData.department,
+      level: formData.level,
+      timestamp: new Date().toISOString(),
+      deviceId: deviceId,
+      location: {
+        latitude: location.latitude,
+        longitude: location.longitude
+      }
+    };
+    
+    if (!sessions[sessionIndex].students) {
+      sessions[sessionIndex].students = [];
+    }
+    
+    sessions[sessionIndex].students.push(studentData);
+    localStorage.setItem('attendanceSessions', JSON.stringify(sessions));
+    localStorage.setItem(`submitted_${sessionId}`, JSON.stringify(studentData));
+    
+    setTimeout(() => {
+      setLoading(false);
+      setSubmitted(true);
+    }, 1000);
   };
 
   const handleChange = (e) => {
@@ -188,8 +344,8 @@ export default function StudentAttendancePage() {
             <div className="space-y-1 sm:space-y-1.5 text-left">
               <p className="text-xs sm:text-sm text-gray-700"><strong>Name:</strong> {formData.fullName}</p>
               <p className="text-xs sm:text-sm text-gray-700"><strong>Reg:</strong> {formData.regNumber}</p>
-              <p className="text-xs sm:text-sm text-gray-700"><strong>Dept:</strong> {session.department}</p>
-              <p className="text-xs sm:text-sm text-gray-700"><strong>Level:</strong> {session.level}</p>
+              <p className="text-xs sm:text-sm text-gray-700"><strong>Dept:</strong> {formData.department}</p>
+              <p className="text-xs sm:text-sm text-gray-700"><strong>Level:</strong> {formData.level}</p>
             </div>
           </div>
           <p className="text-xs text-gray-500 mt-4 sm:mt-6">You can close this page</p>
@@ -198,14 +354,17 @@ export default function StudentAttendancePage() {
     );
   }
 
-  const progress = Object.values(formData).filter(Boolean).length / 2 * 100;
+  const progress = Object.values({
+    fullName: formData.fullName,
+    regNumber: formData.regNumber
+  }).filter(Boolean).length / 2 * 100;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center p-3 sm:p-4 py-4 sm:py-6">
       <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-5 sm:p-8 max-w-2xl w-full">
         <div className="text-center mb-5 sm:mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-1 sm:mb-2">✅ Mark Attendance</h1>
-          <p className="text-sm sm:text-base text-gray-600">Quick & Easy - Just 2 Fields!</p>
+          <p className="text-sm sm:text-base text-gray-600">Quick & Secure Attendance</p>
         </div>
 
         <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg sm:rounded-xl p-4 sm:p-5 mb-5 sm:mb-6 border-2 border-blue-200">
@@ -244,6 +403,33 @@ export default function StudentAttendancePage() {
           </div>
         </div>
 
+        {gettingLocation && (
+          <div className="bg-blue-50 border-l-4 border-blue-400 p-3 sm:p-4 mb-5 sm:mb-6 rounded">
+            <div className="flex items-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+              <p className="text-sm text-blue-700">📍 Getting your location...</p>
+            </div>
+          </div>
+        )}
+
+        {location && !gettingLocation && (
+          <div className="bg-green-50 border-l-4 border-green-400 p-3 sm:p-4 mb-5 sm:mb-6 rounded">
+            <p className="text-sm text-green-700">✅ Location verified - You're in range!</p>
+          </div>
+        )}
+
+        {locationError && (
+          <div className="bg-red-50 border-l-4 border-red-500 p-3 sm:p-4 mb-5 sm:mb-6 rounded">
+            <p className="text-sm text-red-700">{locationError}</p>
+            <button 
+              onClick={requestLocation}
+              className="mt-2 text-sm text-red-600 underline hover:text-red-800"
+            >
+              Try Again
+            </button>
+          </div>
+        )}
+
         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 sm:p-4 mb-5 sm:mb-6 rounded">
           <div className="flex items-start sm:items-center gap-2">
             <svg className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5 sm:mt-0" fill="currentColor" viewBox="0 0 20 20">
@@ -255,12 +441,6 @@ export default function StudentAttendancePage() {
             </div>
           </div>
         </div>
-
-        {formData.fullName && (
-          <div className="bg-green-50 border-l-4 border-green-400 p-2.5 sm:p-3 mb-5 sm:mb-6 rounded">
-            <p className="text-xs sm:text-sm text-green-700">✨ Form auto-saved! Verify and submit.</p>
-          </div>
-        )}
 
         {error && (
           <div className="bg-red-50 border-l-4 border-red-500 p-3 sm:p-4 mb-5 sm:mb-6 rounded">
@@ -295,15 +475,17 @@ export default function StudentAttendancePage() {
               value={formData.regNumber}
               onChange={handleChange}
               className="w-full px-4 sm:px-5 py-3 sm:py-4 border-2 border-gray-300 rounded-lg sm:rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white text-gray-900 text-lg sm:text-xl font-mono uppercase"
-              placeholder="UG24SEN1051"
+              placeholder="e.g. UG24SEN1051, POLY/2024/001, 2024/12345"
               autoComplete="off"
             />
-            <p className="text-xs text-gray-500 mt-1 break-words">Format: UG24SEN1051 (Auto-assigned: {session.department} • {session.level})</p>
+            <p className="text-xs text-gray-500 mt-1 break-words">
+              Enter your registration number (any format accepted)
+            </p>
           </div>
 
           <button
             onClick={handleSubmit}
-            disabled={loading || timeLeft === 'Expired'}
+            disabled={loading || timeLeft === 'Expired' || !location}
             className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-4 sm:py-5 rounded-lg sm:rounded-xl font-bold text-lg sm:text-xl hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98]"
           >
             {loading ? (
@@ -311,13 +493,15 @@ export default function StudentAttendancePage() {
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                 Submitting...
               </span>
+            ) : !location ? (
+              '📍 Waiting for location...'
             ) : (
               '✅ Submit Attendance'
             )}
           </button>
 
           <p className="text-center text-xs sm:text-sm text-gray-600 mt-3 sm:mt-4 bg-gray-50 p-2.5 sm:p-3 rounded-lg">
-            ⚠️ <strong>Important:</strong> You can only submit once per session. Department and level are automatically assigned from the session.
+            🔒 <strong>Secure Submission:</strong> One submission per device. Location and device verification required.
           </p>
         </div>
       </div>
