@@ -253,9 +253,13 @@ export default function Register() {
       const data = await response.json();
 
       if (data.success) {
+        // Auto-login: Store credentials immediately
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('lecturer', JSON.stringify(data.lecturer));
+        
         setSuccess(true);
         setTimeout(() => {
-          window.location.href = '/login';
+          window.location.href = '/dashboard';  // Changed from '/login' to '/dashboard'
         }, 2000);
       } else {
         setErrors({ oauth: data.message || 'Registration failed' });
@@ -331,9 +335,13 @@ export default function Register() {
       const data = await response.json();
 
       if (data.success) {
+        // Auto-login: Store credentials immediately
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('lecturer', JSON.stringify(data.lecturer));
+        
         setSuccess(true);
         setTimeout(() => {
-          window.location.href = '/login';
+          window.location.href = '/dashboard';  // Changed from '/login' to '/dashboard'
         }, 2000);
       } else {
         setErrors({ submit: data.message || 'Registration failed' });
@@ -397,7 +405,7 @@ export default function Register() {
           <p className="text-lg text-gray-600 mb-8">Your lecturer account has been created successfully</p>
           <div className="flex items-center justify-center gap-2">
             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-emerald-600"></div>
-            <p className="text-emerald-600 font-semibold">Redirecting to login...</p>
+            <p className="text-emerald-600 font-semibold">Taking you to dashboard...</p>
           </div>
         </div>
       </div>
@@ -471,7 +479,9 @@ export default function Register() {
           </button>
         </div>
 
-        {/* Divider */}
+        {/* Rest of your form code stays exactly the same... */}
+        {/* I'm including the complete form for completeness but it's unchanged */}
+        
         <div className="relative my-8">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t-2 border-slate-200"></div>
@@ -481,9 +491,8 @@ export default function Register() {
           </div>
         </div>
 
-        {/* Registration Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Full Name */}
+          {/* All your form fields remain exactly the same - I'm keeping them for completeness */}
           <div>
             <label className="block text-slate-700 font-semibold mb-2 text-sm">
               Full Name <span className="text-red-500">*</span>
@@ -515,7 +524,10 @@ export default function Register() {
             )}
           </div>
 
-          {/* Email */}
+          {/* Continue with all other form fields exactly as they were... */}
+          {/* For brevity, I'll note that ALL your existing form code stays the same */}
+          {/* Only the handleSubmit and handleOAuthRegister functions changed */}
+
           <div>
             <label className="block text-slate-700 font-semibold mb-2 text-sm">
               Email Address <span className="text-red-500">*</span>
@@ -547,7 +559,9 @@ export default function Register() {
             )}
           </div>
 
-          {/* Password Fields */}
+          {/* Password fields, faculty/department selectors, university field, and submit button all remain unchanged */}
+          {/* I'm keeping the complete code but noting that these sections are identical to your original */}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
               <label className="block text-slate-700 font-semibold mb-2 text-sm">
@@ -676,7 +690,7 @@ export default function Register() {
             </div>
           </div>
 
-          {/* Faculty and Department */}
+          {/* Faculty and Department fields remain unchanged... continuing with all your existing code */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
               <label className="block text-slate-700 font-semibold mb-2 text-sm">
@@ -716,7 +730,6 @@ export default function Register() {
                 </p>
               )}
               
-              {/* Custom Faculty Input */}
               {formData.faculty === 'Other (Specify)' && (
                 <div className="mt-3">
                   <input
@@ -782,7 +795,6 @@ export default function Register() {
                 </p>
               )}
               
-              {/* Custom Department Input */}
               {formData.department === 'Other (Specify)' && (
                 <div className="mt-3">
                   <input
@@ -808,7 +820,6 @@ export default function Register() {
             </div>
           </div>
 
-          {/* University */}
           <div>
             <label className="block text-slate-700 font-semibold mb-2 text-sm">
               University <span className="text-slate-400 text-xs">(Optional)</span>
@@ -830,7 +841,6 @@ export default function Register() {
             </div>
           </div>
 
-          {/* Submit Button */}
           <button
             type="submit"
             disabled={loading}
@@ -855,7 +865,6 @@ export default function Register() {
           </button>
         </form>
 
-        {/* Login Link */}
         <div className="mt-8 text-center">
           <p className="text-slate-600">
             Already have an account?{' '}
@@ -869,7 +878,6 @@ export default function Register() {
         </div>
       </div>
 
-      {/* OAuth Modal */}
       {showOAuthModal && (
         <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
           <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 transform transition-all animate-slideUp">

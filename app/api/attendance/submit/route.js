@@ -257,7 +257,51 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    // ===== 9. CHECK IF STUDENT CLEARED DATA AND RETRYING =====
+    // ===== 9. CHECK STUDENT CAPACITY LIMIT (NEW FEATURE) =====
+    if (session.maxStudents !== null && session.maxStudents !== undefined) {
+      const currentCount = await db.collection('attendance_records').countDocuments({
+        sessionId,
+        status: 'present'
+      });
+
+      console.log('👥 Capacity check:', {
+        currentCount,
+        maxStudents: session.maxStudents,
+        hasSpace: currentCount < session.maxStudents
+      });
+
+      if (currentCount >= session.maxStudents) {
+        console.log('❌ Capacity limit reached:', { 
+          maxStudents: session.maxStudents,
+          currentCount 
+        });
+        
+        // Auto-expire the session due to capacity
+        await db.collection('sessions').updateOne(
+          { id: sessionId },
+          { $set: { status: 'full' } }
+        );
+        
+        // Log capacity reached event
+        await db.collection('security_logs').insertOne({
+          type: 'CAPACITY_REACHED',
+          sessionId,
+          regNumber,
+          ipAddress,
+          deviceFingerprint,
+          currentCount,
+          maxStudents: session.maxStudents,
+          timestamp: new Date()
+        });
+        
+        return NextResponse.json({
+          success: false,
+          message: `❌ Attendance is full! Maximum capacity of ${session.maxStudents} students has been reached.`
+        }, { status: 400 });
+      }
+    }
+
+    // ===== 10. CHECK IF STUDENT CLEARED DATA AND RETRYING =====
     // Check if same device previously submitted with different regNumber
     const sameDeviceDifferentStudent = await db.collection('attendance_records').findOne({
       sessionId,
@@ -288,7 +332,7 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    // ===== 10. CREATE ATTENDANCE RECORD =====
+    // ===== 11. CREATE ATTENDANCE RECORD =====
     const attendanceRecord = {
       sessionId,
       courseCode: session.courseCode,
@@ -312,7 +356,7 @@ export async function POST(request) {
 
     const insertResult = await db.collection('attendance_records').insertOne(attendanceRecord);
 
-    // ===== 11. UPDATE SESSION STUDENTS ARRAY =====
+    // ===== 12. UPDATE SESSION STUDENTS ARRAY =====
     await db.collection('sessions').updateOne(
       { id: sessionId },
       {
@@ -335,6 +379,23 @@ export async function POST(request) {
       distance: Math.round(distance) + 'm',
       timestamp: attendanceRecord.markedAt
     });
+
+    // Check if capacity just reached after this submission
+    if (session.maxStudents !== null && session.maxStudents !== undefined) {
+      const newCount = await db.collection('attendance_records').countDocuments({
+        sessionId,
+        status: 'present'
+      });
+      
+      if (newCount >= session.maxStudents) {
+        // Mark session as full
+        await db.collection('sessions').updateOne(
+          { id: sessionId },
+          { $set: { status: 'full' } }
+        );
+        console.log('🔒 Session automatically marked as FULL');
+      }
+    }
 
     return NextResponse.json({
       success: true,

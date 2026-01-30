@@ -1,18 +1,19 @@
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { name, email, password, department, university } = body;
+    const { name, email, password, faculty, department, university, oauthProvider } = body;
 
     console.log('📝 Registration attempt for:', email);
 
-    if (!name || !email || !password || !department) {
+    if (!name || !email || !password) {
       return NextResponse.json({
         success: false,
-        message: 'All fields are required'
+        message: 'Name, email, and password are required'
       }, { status: 400 });
     }
 
@@ -61,30 +62,50 @@ export async function POST(request) {
       name: name.trim(),
       email: email.toLowerCase().trim(),
       password: hashedPassword,
-      department: department.trim(),
+      faculty: faculty?.trim() || 'Not specified',
+      department: department?.trim() || 'Not specified',
       university: university?.trim() || 'North West University, Kano',
+      oauthProvider: oauthProvider || null,
       createdAt: new Date(),
-      lastLogin: null,
-      lastLoginMethod: null,
+      lastLogin: new Date(), // Set initial login time
+      lastLoginMethod: oauthProvider || 'email',
       isActive: true
     };
 
     console.log('💾 Saving to database...');
     const result = await lecturersCollection.insertOne(newLecturer);
 
+    // Generate JWT token for auto-login
+    const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+    const token = jwt.sign(
+      { 
+        id: result.insertedId.toString(),
+        email: newLecturer.email,
+        name: newLecturer.name
+      },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
     console.log('✅ Registration successful!');
     console.log('📧 Email:', email);
     console.log('👤 Name:', name);
-    console.log('🏢 Department:', department);
+    console.log('🏢 Faculty:', faculty);
+    console.log('📚 Department:', department);
+    console.log('🔑 Token generated for auto-login');
 
+    // Return token and lecturer data for auto-login
     return NextResponse.json({
       success: true,
-      message: 'Registration successful! You can now login.',
+      message: 'Registration successful! Redirecting to dashboard...',
+      token: token, // Token for auto-login
       lecturer: {
         id: result.insertedId.toString(),
         name: newLecturer.name,
         email: newLecturer.email,
-        department: newLecturer.department
+        faculty: newLecturer.faculty,
+        department: newLecturer.department,
+        university: newLecturer.university
       }
     });
 
