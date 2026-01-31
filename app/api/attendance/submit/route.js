@@ -114,28 +114,25 @@ export async function POST(request) {
       }, { status: 404 });
     }
 
-    // ===== 5. VERIFY SECURE TOKEN (PREVENT LINK SHARING) =====
-    if (!secureToken || session.secureToken !== secureToken) {
-      console.log('❌ Invalid token attempt:', { 
-        provided: secureToken?.substring(0, 10) + '...', 
-        expected: session.secureToken?.substring(0, 10) + '...',
-        match: secureToken === session.secureToken
+    // ===== 5. TOKEN VALIDATION - REMOVED BLOCKING =====
+    // The secureToken is now optional and won't block legitimate students
+    // This allows the lecturer to share one link that works for all students
+    // The real security comes from: device fingerprint, IP, location, and duplicate checks
+    
+    if (secureToken && session.secureToken && secureToken !== session.secureToken) {
+      // Just log it for monitoring, but don't block the student
+      console.log('ℹ️ Token mismatch detected (non-blocking):', { 
+        sessionId,
+        provided: secureToken?.substring(0, 10) + '...'
       });
       
-      // Log suspicious activity
       await db.collection('security_logs').insertOne({
-        type: 'INVALID_TOKEN',
+        type: 'TOKEN_MISMATCH_INFO',
         sessionId,
         ipAddress,
         deviceFingerprint,
-        attemptedRegNumber: regNumber,
         timestamp: new Date()
       });
-      
-      return NextResponse.json({
-        success: false,
-        message: '⚠️ Invalid link! This link can only be used from your lecturer\'s sharing. Student-shared links are blocked for security.'
-      }, { status: 403 });
     }
 
     // ===== 6. CHECK IF SESSION IS ACTIVE AND NOT EXPIRED =====
@@ -257,7 +254,7 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    // ===== 9. CHECK STUDENT CAPACITY LIMIT (NEW FEATURE) =====
+    // ===== 9. CHECK STUDENT CAPACITY LIMIT =====
     if (session.maxStudents !== null && session.maxStudents !== undefined) {
       const currentCount = await db.collection('attendance_records').countDocuments({
         sessionId,

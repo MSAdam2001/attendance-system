@@ -206,7 +206,8 @@ export default function SimpleDashboard() {
     showToast(`Course "${course.courseName}" saved!`, 'success');
   };
 
-  const quickStartFromCourse = (course) => {
+  // ===== UPDATED: Quick Start with API =====
+  const quickStartFromCourse = async (course) => {
     const finalDept = quickDepartment === 'Other (Specify)' ? quickCustomDept : quickDepartment;
     const finalLvl = quickLevel === 'Other (Specify)' ? quickCustomLevel : quickLevel;
 
@@ -224,41 +225,80 @@ export default function SimpleDashboard() {
       }
     }
 
-    const sessionId = Date.now().toString();
-    const expiryTime = new Date(Date.now() + quickDuration * 60000);
-    
-    const session = {
-      id: sessionId,
-      lecturerId: lecturer.id,
-      lecturerName: lecturer.name,
-      lecturerEmail: lecturer.email,
-      courseName: course.courseName,
-      courseCode: course.courseCode,
-      department: finalDept,
-      level: finalLvl,
-      createdAt: new Date().toISOString(),
-      expiresAt: expiryTime.toISOString(),
-      duration: quickDuration,
-      maxStudents: maxStudents,
-      link: `${window.location.origin}/attendance/${sessionId}`,
-      status: 'active',
-      students: []
-    };
+    // Get user's location
+    let location = null;
+    try {
+      const position = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 5000,
+          maximumAge: 0
+        });
+      });
+      location = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        radiusInMeters: 100 // Default 100 meters
+      };
+    } catch (error) {
+      console.log('⚠️ Location not available:', error);
+      // Continue without location
+    }
 
-    saveSessions([session, ...sessions]);
-    setShowQuickStart(false);
-    setQuickDepartment('');
-    setQuickLevel('');
-    setQuickCustomDept('');
-    setQuickCustomLevel('');
-    setQuickMaxStudents('');
-    navigator.clipboard.writeText(session.link);
-    
-    const capacityInfo = maxStudents ? ` (Max: ${maxStudents} students)` : ' (Unlimited)';
-    showToast(`${course.courseName} - Started! Link copied!${capacityInfo}`, 'success');
+    // ===== CREATE SESSION VIA API =====
+    try {
+      showToast('Creating session...', 'info');
+      
+      const response = await fetch('/api/sessions/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          courseName: course.courseName,
+          courseCode: course.courseCode,
+          department: finalDept,
+          level: finalLvl,
+          duration: quickDuration,
+          maxStudents: maxStudents,
+          lecturerId: lecturer.id,
+          lecturerName: lecturer.name,
+          lecturerEmail: lecturer.email,
+          location: location
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        showToast(data.message || 'Failed to create session', 'error');
+        return;
+      }
+
+      const session = data.session;
+
+      // Also save to localStorage for quick access
+      saveSessions([session, ...sessions]);
+      
+      setShowQuickStart(false);
+      setQuickDepartment('');
+      setQuickLevel('');
+      setQuickCustomDept('');
+      setQuickCustomLevel('');
+      setQuickMaxStudents('');
+      
+      navigator.clipboard.writeText(session.link);
+      
+      const capacityInfo = maxStudents ? ` (Max: ${maxStudents} students)` : ' (Unlimited)';
+      showToast(`${course.courseName} - Started! Link copied!${capacityInfo}`, 'success');
+    } catch (error) {
+      console.error('Error creating session:', error);
+      showToast('Network error. Please try again.', 'error');
+    }
   };
 
-  const superQuickStart = () => {
+  // ===== UPDATED: Super Quick Start with API =====
+  const superQuickStart = async () => {
     if (courses.length === 0) {
       showToast('Please create a course first', 'warning');
       setShowCreateCourse(true);
@@ -266,30 +306,65 @@ export default function SimpleDashboard() {
     }
 
     const course = courses[0];
-    const sessionId = Date.now().toString();
-    const expiryTime = new Date(Date.now() + 15 * 60000);
-    
-    const session = {
-      id: sessionId,
-      lecturerId: lecturer.id,
-      lecturerName: lecturer.name,
-      lecturerEmail: lecturer.email,
-      courseName: course.courseName,
-      courseCode: course.courseCode,
-      department: course.department,
-      level: course.level,
-      createdAt: new Date().toISOString(),
-      expiresAt: expiryTime.toISOString(),
-      duration: 15,
-      maxStudents: null,
-      link: `${window.location.origin}/attendance/${sessionId}`,
-      status: 'active',
-      students: []
-    };
 
-    saveSessions([session, ...sessions]);
-    navigator.clipboard.writeText(session.link);
-    showToast(`${course.courseName} - Started! Link copied! (Unlimited)`, 'success');
+    // Get user's location
+    let location = null;
+    try {
+      const position = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 5000,
+          maximumAge: 0
+        });
+      });
+      location = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        radiusInMeters: 100
+      };
+    } catch (error) {
+      console.log('⚠️ Location not available');
+    }
+
+    // ===== CREATE SESSION VIA API =====
+    try {
+      showToast('Creating session...', 'info');
+      
+      const response = await fetch('/api/sessions/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          courseName: course.courseName,
+          courseCode: course.courseCode,
+          department: course.department,
+          level: course.level,
+          duration: 15,
+          maxStudents: null,
+          lecturerId: lecturer.id,
+          lecturerName: lecturer.name,
+          lecturerEmail: lecturer.email,
+          location: location
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        showToast(data.message || 'Failed to create session', 'error');
+        return;
+      }
+
+      const session = data.session;
+      saveSessions([session, ...sessions]);
+      
+      navigator.clipboard.writeText(session.link);
+      showToast(`${course.courseName} - Started! Link copied! (Unlimited)`, 'success');
+    } catch (error) {
+      console.error('Error:', error);
+      showToast('Network error. Please try again.', 'error');
+    }
   };
 
   const deleteCourse = (courseId) => {
@@ -913,17 +988,16 @@ export default function SimpleDashboard() {
                     </button>
                   ))}
                 </div>
-             <button
-  onClick={() => {
-    setShowQuickStart(false);
-    setShowCreateCourse(true);
-  }}
-  className="w-full mt-4 bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 flex items-center justify-center gap-2 transition"
->
-  <Plus className="w-4 h-4" />
-  Add New Course
-</button>
-
+                <button
+                  onClick={() => {
+                    setShowQuickStart(false);
+                    setShowCreateCourse(true);
+                  }}
+                  className="w-full mt-4 bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 flex items-center justify-center gap-2 transition"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add New Course
+                </button>
               </>
             )}
             <button onClick={() => {
