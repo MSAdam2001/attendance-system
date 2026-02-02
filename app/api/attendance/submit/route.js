@@ -19,7 +19,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c; // Distance in meters
 }
 
-// Generate device fingerprint from User Agent + IP + Browser Features
+// Generate device fingerprint from User Agent + IP
 function generateDeviceFingerprint(userAgent, ipAddress) {
   const data = `${userAgent}-${ipAddress}`;
   return crypto.createHash('sha256').update(data).digest('hex');
@@ -90,7 +90,7 @@ export async function POST(request) {
     const userAgent = request.headers.get('user-agent') || '';
     const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
                      request.headers.get('x-real-ip') || 
-                     request.headers.get('cf-connecting-ip') || // Cloudflare
+                     request.headers.get('cf-connecting-ip') || 
                      'unknown';
     const deviceFingerprint = generateDeviceFingerprint(userAgent, ipAddress);
 
@@ -114,28 +114,7 @@ export async function POST(request) {
       }, { status: 404 });
     }
 
-    // ===== 5. TOKEN VALIDATION - REMOVED BLOCKING =====
-    // The secureToken is now optional and won't block legitimate students
-    // This allows the lecturer to share one link that works for all students
-    // The real security comes from: device fingerprint, IP, location, and duplicate checks
-    
-    if (secureToken && session.secureToken && secureToken !== session.secureToken) {
-      // Just log it for monitoring, but don't block the student
-      console.log('ℹ️ Token mismatch detected (non-blocking):', { 
-        sessionId,
-        provided: secureToken?.substring(0, 10) + '...'
-      });
-      
-      await db.collection('security_logs').insertOne({
-        type: 'TOKEN_MISMATCH_INFO',
-        sessionId,
-        ipAddress,
-        deviceFingerprint,
-        timestamp: new Date()
-      });
-    }
-
-    // ===== 6. CHECK IF SESSION IS ACTIVE AND NOT EXPIRED =====
+    // ===== 5. CHECK IF SESSION IS ACTIVE AND NOT EXPIRED =====
     const now = new Date();
     const expiresAt = new Date(session.expiresAt);
     
@@ -143,7 +122,7 @@ export async function POST(request) {
       return NextResponse.json({
         success: false,
         message: 'This attendance session is no longer active'
-      }, { status: 400 });
+      }, { status: 410 });
     }
     
     if (now > expiresAt) {
@@ -156,7 +135,39 @@ export async function POST(request) {
       return NextResponse.json({
         success: false,
         message: '⏰ This attendance session has expired'
-      }, { status: 400 });
+      }, { status: 410 });
+    }
+
+    // ===== 6. CHECK STUDENT CAPACITY LIMIT FIRST =====
+    if (session.maxStudents !== null && session.maxStudents !== undefined) {
+      const currentCount = await db.collection('attendance_records').countDocuments({
+        sessionId,
+        status: 'present'
+      });
+
+      console.log('👥 Capacity check:', {
+        currentCount,
+        maxStudents: session.maxStudents,
+        hasSpace: currentCount < session.maxStudents
+      });
+
+      if (currentCount >= session.maxStudents) {
+        console.log('❌ Capacity limit reached:', { 
+          maxStudents: session.maxStudents,
+          currentCount 
+        });
+        
+        // Auto-mark session as full
+        await db.collection('sessions').updateOne(
+          { id: sessionId },
+          { $set: { status: 'full' } }
+        );
+        
+        return NextResponse.json({
+          success: false,
+          message: `❌ Attendance is full! Maximum capacity of ${session.maxStudents} students has been reached.`
+        }, { status: 403 });
+      }
     }
 
     // ===== 7. CHECK FOR DUPLICATE ATTENDANCE =====
@@ -194,158 +205,85 @@ export async function POST(request) {
       
       return NextResponse.json({
         success: false,
-        message: '❌ Attendance already recorded! One submission per device/student only.'
-      }, { status: 400 });
+        message: '❌ Attendance already recorded! You have already submitted attendance for this session.'
+      }, { status: 409 });
     }
 
-    // ===== 8. VERIFY LOCATION (GEOFENCING) =====
-    if (!latitude || !longitude) {
-      return NextResponse.json({
-        success: false,
-        message: '📍 Location access is required to mark attendance. Please enable location and try again.'
-      }, { status: 400 });
-    }
+    // ===== 8. VERIFY LOCATION (GEOFENCING) - ONLY IF REQUIRED =====
+    const shouldRequireLocation = session.location && session.location.latitude && session.location.longitude;
+    
+    if (shouldRequireLocation) {
+      if (!latitude || !longitude) {
+        return NextResponse.json({
+          success: false,
+          message: '📍 Location access is required to mark attendance. Please enable location and try again.'
+        }, { status: 400 });
+      }
 
-    if (!session.location || !session.location.latitude || !session.location.longitude) {
-      return NextResponse.json({
-        success: false,
-        message: 'Session location not configured by lecturer'
-      }, { status: 400 });
-    }
+      const distance = calculateDistance(
+        session.location.latitude,
+        session.location.longitude,
+        latitude,
+        longitude
+      );
 
-    const distance = calculateDistance(
-      session.location.latitude,
-      session.location.longitude,
-      latitude,
-      longitude
-    );
+      // Default radius: 100 meters
+      const allowedRadius = session.location.radiusInMeters || 100;
 
-    // Default radius: 100 meters (adjust as needed)
-    const allowedRadius = session.location.radiusInMeters || 100;
-
-    console.log('📍 Location verification:', {
-      studentLocation: { latitude, longitude },
-      lecturerLocation: { 
-        lat: session.location.latitude, 
-        lon: session.location.longitude 
-      },
-      distance: Math.round(distance) + 'm',
-      allowedRadius: allowedRadius + 'm',
-      withinRange: distance <= allowedRadius
-    });
-
-    if (distance > allowedRadius) {
-      // Log out-of-range attempt
-      await db.collection('security_logs').insertOne({
-        type: 'OUT_OF_RANGE',
-        sessionId,
-        regNumber,
-        ipAddress,
-        deviceFingerprint,
-        distance: Math.round(distance),
-        allowedRadius,
+      console.log('📍 Location verification:', {
         studentLocation: { latitude, longitude },
-        timestamp: new Date()
-      });
-      
-      return NextResponse.json({
-        success: false,
-        message: `❌ You must be within ${allowedRadius}m of the classroom to mark attendance. You are currently ${Math.round(distance)}m away.`
-      }, { status: 400 });
-    }
-
-    // ===== 9. CHECK STUDENT CAPACITY LIMIT =====
-    if (session.maxStudents !== null && session.maxStudents !== undefined) {
-      const currentCount = await db.collection('attendance_records').countDocuments({
-        sessionId,
-        status: 'present'
+        lecturerLocation: { 
+          lat: session.location.latitude, 
+          lon: session.location.longitude 
+        },
+        distance: Math.round(distance) + 'm',
+        allowedRadius: allowedRadius + 'm',
+        withinRange: distance <= allowedRadius
       });
 
-      console.log('👥 Capacity check:', {
-        currentCount,
-        maxStudents: session.maxStudents,
-        hasSpace: currentCount < session.maxStudents
-      });
-
-      if (currentCount >= session.maxStudents) {
-        console.log('❌ Capacity limit reached:', { 
-          maxStudents: session.maxStudents,
-          currentCount 
-        });
-        
-        // Auto-expire the session due to capacity
-        await db.collection('sessions').updateOne(
-          { id: sessionId },
-          { $set: { status: 'full' } }
-        );
-        
-        // Log capacity reached event
+      if (distance > allowedRadius) {
+        // Log out-of-range attempt
         await db.collection('security_logs').insertOne({
-          type: 'CAPACITY_REACHED',
+          type: 'OUT_OF_RANGE',
           sessionId,
           regNumber,
           ipAddress,
           deviceFingerprint,
-          currentCount,
-          maxStudents: session.maxStudents,
+          distance: Math.round(distance),
+          allowedRadius,
+          studentLocation: { latitude, longitude },
           timestamp: new Date()
         });
         
         return NextResponse.json({
           success: false,
-          message: `❌ Attendance is full! Maximum capacity of ${session.maxStudents} students has been reached.`
+          message: `❌ You must be within ${allowedRadius}m of the classroom to mark attendance. You are currently ${Math.round(distance)}m away.`
         }, { status: 400 });
       }
     }
 
-    // ===== 10. CHECK IF STUDENT CLEARED DATA AND RETRYING =====
-    // Check if same device previously submitted with different regNumber
-    const sameDeviceDifferentStudent = await db.collection('attendance_records').findOne({
-      sessionId,
-      deviceFingerprint,
-      regNumber: { $ne: regNumber.toUpperCase() }
-    });
-
-    if (sameDeviceDifferentStudent) {
-      console.log('⚠️ Device reuse detected:', {
-        currentRegNumber: regNumber,
-        previousRegNumber: sameDeviceDifferentStudent.regNumber,
-        deviceFingerprint: deviceFingerprint.substring(0, 16) + '...'
-      });
-      
-      await db.collection('security_logs').insertOne({
-        type: 'DEVICE_REUSE',
-        sessionId,
-        currentRegNumber: regNumber,
-        previousRegNumber: sameDeviceDifferentStudent.regNumber,
-        deviceFingerprint,
-        ipAddress,
-        timestamp: new Date()
-      });
-      
-      return NextResponse.json({
-        success: false,
-        message: '❌ This device was already used to submit attendance. One device per student only.'
-      }, { status: 400 });
-    }
-
-    // ===== 11. CREATE ATTENDANCE RECORD =====
+    // ===== 9. CREATE ATTENDANCE RECORD =====
     const attendanceRecord = {
       sessionId,
       courseCode: session.courseCode,
       courseName: session.courseName,
       studentName: fullName,
-      regNumber: regNumber.toUpperCase(), // Standardize to uppercase
+      regNumber: regNumber.toUpperCase(),
       department,
       level,
       deviceFingerprint,
       ipAddress,
       userAgent,
       location: {
+        latitude: latitude || null,
+        longitude: longitude || null
+      },
+      distanceFromLecturer: shouldRequireLocation ? Math.round(calculateDistance(
+        session.location.latitude,
+        session.location.longitude,
         latitude,
         longitude
-      },
-      distanceFromLecturer: Math.round(distance),
+      )) : null,
       markedAt: new Date(),
       status: 'present',
       verified: true
@@ -353,7 +291,7 @@ export async function POST(request) {
 
     const insertResult = await db.collection('attendance_records').insertOne(attendanceRecord);
 
-    // ===== 12. UPDATE SESSION STUDENTS ARRAY =====
+    // ===== 10. UPDATE SESSION STUDENTS ARRAY =====
     await db.collection('sessions').updateOne(
       { id: sessionId },
       {
@@ -373,11 +311,16 @@ export async function POST(request) {
     console.log('✅ Attendance recorded successfully:', {
       id: insertResult.insertedId,
       regNumber: regNumber.toUpperCase(),
-      distance: Math.round(distance) + 'm',
+      distance: shouldRequireLocation ? Math.round(calculateDistance(
+        session.location.latitude,
+        session.location.longitude,
+        latitude,
+        longitude
+      )) + 'm' : 'No location check',
       timestamp: attendanceRecord.markedAt
     });
 
-    // Check if capacity just reached after this submission
+    // Check if capacity just reached
     if (session.maxStudents !== null && session.maxStudents !== undefined) {
       const newCount = await db.collection('attendance_records').countDocuments({
         sessionId,
@@ -385,7 +328,6 @@ export async function POST(request) {
       });
       
       if (newCount >= session.maxStudents) {
-        // Mark session as full
         await db.collection('sessions').updateOne(
           { id: sessionId },
           { $set: { status: 'full' } }
@@ -401,7 +343,12 @@ export async function POST(request) {
         studentName: fullName,
         regNumber: regNumber.toUpperCase(),
         markedAt: attendanceRecord.markedAt,
-        distance: Math.round(distance),
+        distance: shouldRequireLocation ? Math.round(calculateDistance(
+          session.location.latitude,
+          session.location.longitude,
+          latitude,
+          longitude
+        )) : null,
         courseName: session.courseName,
         courseCode: session.courseCode
       }
@@ -410,12 +357,12 @@ export async function POST(request) {
   } catch (error) {
     console.error('❌ Attendance submission error:', error);
 
-    // Handle MongoDB duplicate key error (additional safety)
+    // Handle MongoDB duplicate key error
     if (error.code === 11000) {
       return NextResponse.json({
         success: false,
         message: '❌ Duplicate submission detected. You have already marked attendance!'
-      }, { status: 400 });
+      }, { status: 409 });
     }
 
     return NextResponse.json({

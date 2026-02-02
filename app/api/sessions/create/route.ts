@@ -1,26 +1,29 @@
-// app/api/sessions/create/route.ts
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
-import { verifyToken } from '@/lib/auth';
+import crypto from 'crypto';
 
-export async function POST(request: NextRequest) {
+export async function POST(request) {
   try {
-    const decoded = verifyToken(request);
-    if (!decoded) {
-      return NextResponse.json(
-        { success: false, message: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
     const body = await request.json();
-    const { courseName, courseCode, duration } = body;
+    const {
+      courseName,
+      courseCode,
+      department,
+      level,
+      duration,
+      maxStudents,
+      lecturerId,
+      lecturerName,
+      lecturerEmail,
+      location
+    } = body;
 
-    if (!courseName || !courseCode || !duration) {
-      return NextResponse.json(
-        { success: false, message: 'Missing required fields' },
-        { status: 400 }
-      );
+    // Validate required fields
+    if (!courseName || !courseCode || !department || !level || !duration || !lecturerId) {
+      return NextResponse.json({
+        success: false,
+        message: 'Missing required fields'
+      }, { status: 400 });
     }
 
     const client = await clientPromise;
@@ -29,20 +32,34 @@ export async function POST(request: NextRequest) {
     const sessionId = Date.now().toString();
     const expiryTime = new Date(Date.now() + duration * 60000);
     
+    // Generate secure token
+    const secureToken = crypto.randomBytes(32).toString('hex');
+    
     const session = {
       id: sessionId,
+      lecturerId,
+      lecturerName,
+      lecturerEmail,
       courseName,
       courseCode,
-      lecturerId: decoded.id,
+      department,
+      level,
       createdAt: new Date(),
       expiresAt: expiryTime,
       duration,
+      maxStudents: maxStudents || null,
+      location: location || null,
+      secureToken,
       link: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/attendance/${sessionId}`,
       status: 'active',
-      students: []
+      students: [],
+      totalPresent: 0
     };
 
+    // Save to MongoDB
     await db.collection('sessions').insertOne(session);
+
+    console.log('✅ Session created in MongoDB:', sessionId);
 
     return NextResponse.json({
       success: true,
@@ -50,10 +67,10 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Create session error:', error);
-    return NextResponse.json(
-      { success: false, message: 'Internal server error' },
-      { status: 500 }
-    );
+    console.error('❌ Create session error:', error);
+    return NextResponse.json({
+      success: false,
+      message: 'Failed to create session'
+    }, { status: 500 });
   }
 }

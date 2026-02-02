@@ -2,6 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import { 
+  CheckCircle, 
+  Clock, 
+  MapPin, 
+  AlertCircle,
+  Loader2,
+  XCircle,
+  User,
+  Hash,
+  Users
+} from 'lucide-react';
 
 export default function StudentAttendancePage() {
   const params = useParams();
@@ -196,7 +207,10 @@ export default function StudentAttendancePage() {
       return;
     }
 
-    if (!location) {
+    // Allow submission even without location for sessions that don't require it
+    const shouldRequireLocation = session.location && session.location.latitude && session.location.longitude;
+    
+    if (shouldRequireLocation && !location) {
       setError('📍 Location is required. Please allow location access and try again.');
       requestLocation();
       return;
@@ -213,20 +227,21 @@ export default function StudentAttendancePage() {
         },
         body: JSON.stringify({
           sessionId: sessionId,
-          secureToken: session.secureToken, // Include the token from session
-          fullName: formData.fullName,
-          regNumber: formData.regNumber,
-          department: formData.department,
-          level: formData.level,
-          latitude: location.latitude,
-          longitude: location.longitude
+          secureToken: session.secureToken,
+          fullName: formData.fullName.trim(),
+          regNumber: formData.regNumber.trim(),
+          department: formData.department || session.department,
+          level: formData.level || session.level,
+          latitude: location?.latitude || null,
+          longitude: location?.longitude || null
         })
       });
 
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        setError(data.message || 'Failed to submit attendance');
+        // Show detailed error message from backend
+        setError(data.message || 'Failed to submit attendance. Please try again.');
         setLoading(false);
         return;
       }
@@ -235,8 +250,8 @@ export default function StudentAttendancePage() {
       const submissionData = {
         fullName: formData.fullName,
         regNumber: formData.regNumber.toUpperCase(),
-        department: formData.department,
-        level: formData.level,
+        department: formData.department || session.department,
+        level: formData.level || session.level,
         timestamp: data.data.markedAt,
         courseName: session.courseName,
         courseCode: session.courseCode
@@ -265,7 +280,7 @@ export default function StudentAttendancePage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center p-3 sm:p-4">
         <div className="bg-white rounded-xl sm:rounded-2xl p-6 sm:p-8 text-center">
-          <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-blue-600 mx-auto mb-3 sm:mb-4"></div>
+          <Loader2 className="w-10 h-10 sm:h-12 sm:w-12 animate-spin text-blue-600 mx-auto mb-3 sm:mb-4" />
           <p className="text-sm sm:text-base text-gray-600">Loading session...</p>
         </div>
       </div>
@@ -278,9 +293,7 @@ export default function StudentAttendancePage() {
       <div className="min-h-screen bg-gradient-to-br from-red-500 via-pink-600 to-purple-600 flex items-center justify-center p-3 sm:p-4">
         <div className="bg-white rounded-xl sm:rounded-2xl p-6 sm:p-8 max-w-md w-full text-center">
           <div className="bg-red-100 w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
-            <svg className="w-10 h-10 sm:w-12 sm:h-12 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <XCircle className="w-10 h-10 sm:w-12 sm:h-12 text-red-600" />
           </div>
           <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">Session Not Found</h2>
           <p className="text-sm sm:text-base text-gray-600 mb-4">{error}</p>
@@ -296,9 +309,7 @@ export default function StudentAttendancePage() {
       <div className="min-h-screen bg-gradient-to-br from-green-500 via-emerald-600 to-teal-700 flex items-center justify-center p-3 sm:p-4">
         <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-6 sm:p-8 max-w-md w-full text-center">
           <div className="bg-green-100 w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
-            <svg className="w-12 h-12 sm:w-16 sm:h-16 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
+            <CheckCircle className="w-12 h-12 sm:w-16 sm:h-16 text-green-600" />
           </div>
           <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-3 sm:mb-4">Attendance Submitted! ✓</h2>
           <p className="text-sm sm:text-base text-gray-600 mb-2">Successfully recorded for</p>
@@ -323,10 +334,30 @@ export default function StudentAttendancePage() {
     );
   }
 
+  if (timeLeft === 'Expired') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center p-3 sm:p-4">
+        <div className="bg-white rounded-xl sm:rounded-2xl p-6 sm:p-8 max-w-md w-full text-center">
+          <div className="bg-gray-100 w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+            <Clock className="w-10 h-10 sm:w-12 sm:h-12 text-gray-600" />
+          </div>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">Session Expired</h2>
+          <p className="text-sm sm:text-base text-gray-600 mb-4">This attendance session has ended</p>
+          <p className="text-xs text-gray-500">Contact your lecturer if you need assistance</p>
+        </div>
+      </div>
+    );
+  }
+
   const progress = Object.values({
     fullName: formData.fullName,
     regNumber: formData.regNumber
   }).filter(Boolean).length / 2 * 100;
+
+  const shouldRequireLocation = session.location && session.location.latitude && session.location.longitude;
+  const canSubmit = formData.fullName.trim() && formData.regNumber.trim() && 
+                    (!shouldRequireLocation || location) && 
+                    timeLeft !== 'Expired';
 
   // ===== MAIN FORM =====
   return (
@@ -360,6 +391,32 @@ export default function StudentAttendancePage() {
           </div>
         </div>
 
+        {/* Capacity Progress */}
+        {session.maxStudents && (
+          <div className="bg-orange-50 border-2 border-orange-200 rounded-lg p-3 sm:p-4 mb-5 sm:mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-orange-600" />
+                <span className="text-sm font-bold text-orange-900">Capacity</span>
+              </div>
+              <span className="text-sm font-bold text-orange-900">
+                {session.students?.length || 0}/{session.maxStudents}
+              </span>
+            </div>
+            <div className="w-full bg-orange-200 rounded-full h-2">
+              <div 
+                className="bg-orange-600 h-2 rounded-full transition-all duration-500"
+                style={{ 
+                  width: `${Math.min(((session.students?.length || 0) / session.maxStudents) * 100, 100)}%` 
+                }}
+              />
+            </div>
+            {session.students?.length >= session.maxStudents && (
+              <p className="text-xs text-red-700 font-bold mt-2">⚠️ Session is at full capacity!</p>
+            )}
+          </div>
+        )}
+
         <div className="mb-5 sm:mb-6">
           <div className="flex justify-between text-xs sm:text-sm mb-2">
             <span className="text-gray-600">Form Progress</span>
@@ -376,51 +433,67 @@ export default function StudentAttendancePage() {
         {gettingLocation && (
           <div className="bg-blue-50 border-l-4 border-blue-400 p-3 sm:p-4 mb-5 sm:mb-6 rounded">
             <div className="flex items-center gap-2">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+              <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
               <p className="text-sm text-blue-700">📍 Getting your location...</p>
             </div>
           </div>
         )}
 
-        {location && !gettingLocation && (
+        {location && !gettingLocation && shouldRequireLocation && (
           <div className="bg-green-50 border-l-4 border-green-400 p-3 sm:p-4 mb-5 sm:mb-6 rounded">
-            <p className="text-sm text-green-700">✅ Location verified - You're in range!</p>
+            <div className="flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-green-600" />
+              <p className="text-sm text-green-700 font-semibold">✅ Location verified - You're in range!</p>
+            </div>
           </div>
         )}
 
-        {locationError && (
+        {!shouldRequireLocation && (
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 sm:p-4 mb-5 sm:mb-6 rounded">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-yellow-600" />
+              <p className="text-sm text-yellow-700">Session location not configured by lecturer</p>
+            </div>
+          </div>
+        )}
+
+        {locationError && shouldRequireLocation && (
           <div className="bg-red-50 border-l-4 border-red-500 p-3 sm:p-4 mb-5 sm:mb-6 rounded">
             <p className="text-sm text-red-700">{locationError}</p>
             <button 
               onClick={requestLocation}
-              className="mt-2 text-sm text-red-600 underline hover:text-red-800"
+              className="mt-2 text-sm text-red-600 underline hover:text-red-800 font-semibold"
             >
               Try Again
             </button>
           </div>
         )}
 
-        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 sm:p-4 mb-5 sm:mb-6 rounded">
-          <div className="flex items-start sm:items-center gap-2">
-            <svg className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5 sm:mt-0" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd"/>
-            </svg>
-            <div className="flex-1">
-              <p className="text-sm font-bold text-yellow-800">Time Remaining: {timeLeft}</p>
-              <p className="text-xs text-yellow-700">Submit before time expires</p>
-            </div>
+        <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg p-3 sm:p-4 mb-5 sm:mb-6 text-center">
+          <div className="flex items-center justify-center gap-2 mb-1">
+            <Clock className="w-5 h-5" />
+            <span className="text-sm font-bold">Time Remaining</span>
           </div>
+          <p className="text-3xl sm:text-4xl font-black font-mono">{timeLeft}</p>
+          <p className="text-xs mt-1">Submit before time expires</p>
         </div>
 
         {error && (
           <div className="bg-red-50 border-l-4 border-red-500 p-3 sm:p-4 mb-5 sm:mb-6 rounded">
-            <p className="text-xs sm:text-sm text-red-700 font-medium break-words">{error}</p>
+            <div className="flex items-start gap-2">
+              <XCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-bold text-red-800">Submission Failed</p>
+                <p className="text-xs sm:text-sm text-red-700 mt-1 break-words">{error}</p>
+              </div>
+            </div>
           </div>
         )}
 
         <div className="space-y-4 sm:space-y-5">
           <div>
-            <label className="block text-gray-700 font-bold mb-1.5 sm:mb-2 text-base sm:text-lg">
+            <label className="block text-gray-700 font-bold mb-1.5 sm:mb-2 text-base sm:text-lg flex items-center gap-2">
+              <User className="w-5 h-5 text-blue-600" />
               📝 Full Name <span className="text-red-500">*</span>
             </label>
             <input
@@ -429,14 +502,16 @@ export default function StudentAttendancePage() {
               value={formData.fullName}
               onChange={handleChange}
               className="w-full px-4 sm:px-5 py-3 sm:py-4 border-2 border-gray-300 rounded-lg sm:rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white text-gray-900 text-base sm:text-lg"
-              placeholder="Abubakar Mohammed Ibrahim"
+              placeholder="Enter your full name as registered"
               autoComplete="name"
+              disabled={loading}
             />
             <p className="text-xs text-gray-500 mt-1">Enter your full name as registered</p>
           </div>
 
           <div>
-            <label className="block text-gray-700 font-bold mb-1.5 sm:mb-2 text-base sm:text-lg">
+            <label className="block text-gray-700 font-bold mb-1.5 sm:mb-2 text-base sm:text-lg flex items-center gap-2">
+              <Hash className="w-5 h-5 text-blue-600" />
               🎓 Registration Number <span className="text-red-500">*</span>
             </label>
             <input
@@ -445,8 +520,9 @@ export default function StudentAttendancePage() {
               value={formData.regNumber}
               onChange={handleChange}
               className="w-full px-4 sm:px-5 py-3 sm:py-4 border-2 border-gray-300 rounded-lg sm:rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white text-gray-900 text-lg sm:text-xl font-mono uppercase"
-              placeholder="e.g. UG24SEN1051, POLY/2024/001, 2024/12345"
+              placeholder="e.g. UG24SEN1051, 2024/12345"
               autoComplete="off"
+              disabled={loading}
             />
             <p className="text-xs text-gray-500 mt-1 break-words">
               Enter your registration number (any format accepted)
@@ -455,18 +531,21 @@ export default function StudentAttendancePage() {
 
           <button
             onClick={handleSubmit}
-            disabled={loading || timeLeft === 'Expired' || !location}
-            className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-4 sm:py-5 rounded-lg sm:rounded-xl font-bold text-lg sm:text-xl hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98]"
+            disabled={loading || !canSubmit}
+            className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-4 sm:py-5 rounded-lg sm:rounded-xl font-bold text-lg sm:text-xl hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
           >
             {loading ? (
-              <span className="flex items-center justify-center gap-2">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
                 Submitting...
-              </span>
-            ) : !location ? (
-              '📍 Waiting for location...'
+              </>
+            ) : !canSubmit ? (
+              shouldRequireLocation && !location ? '📍 Waiting for location...' : '✅ Submit Attendance'
             ) : (
-              '✅ Submit Attendance'
+              <>
+                <CheckCircle className="w-5 h-5" />
+                ✅ Submit Attendance
+              </>
             )}
           </button>
 

@@ -20,14 +20,18 @@ import {
   XCircle,
   AlertCircle,
   UserCheck,
-  Lock
+  Lock,
+  RefreshCw,
+  TrendingUp,
+  Award,
+  Zap
 } from 'lucide-react';
 
-const Toast = ({ message, type, onClose }) => {
+const Toast = ({ message, type, onClose, duration = 4000 }) => {
   useEffect(() => {
-    const timer = setTimeout(onClose, 4000);
+    const timer = setTimeout(onClose, duration);
     return () => clearTimeout(timer);
-  }, [onClose]);
+  }, [onClose, duration]);
 
   const styles = {
     success: 'bg-green-500',
@@ -63,6 +67,8 @@ export default function SimpleDashboard() {
   const [showSessionDetails, setShowSessionDetails] = useState(null);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [toasts, setToasts] = useState([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState(new Date());
   
   const [newCourse, setNewCourse] = useState({
     courseName: '',
@@ -98,9 +104,9 @@ export default function SimpleDashboard() {
     'Year 1', 'Year 2', 'Year 3', 'Year 4', 'Other (Specify)'
   ];
 
-  const showToast = (message, type = 'success') => {
+  const showToast = (message, type = 'success', duration = 4000) => {
     const id = Date.now();
-    setToasts(prev => [...prev, { id, message, type }]);
+    setToasts(prev => [...prev, { id, message, type, duration }]);
   };
 
   const removeToast = (id) => {
@@ -126,6 +132,7 @@ export default function SimpleDashboard() {
 
   const loadData = (lecturerId) => {
     try {
+      setIsRefreshing(true);
       const allSessions = JSON.parse(localStorage.getItem('attendanceSessions') || '[]');
       const lecturerSessions = allSessions.filter(s => s.lecturerId === lecturerId);
       setSessions(lecturerSessions);
@@ -134,9 +141,11 @@ export default function SimpleDashboard() {
       const lecturerCourses = allCourses.filter(c => c.lecturerId === lecturerId);
       setCourses(lecturerCourses);
       
-      console.log('📚 Loaded courses:', lecturerCourses.length, lecturerCourses);
+      setLastRefresh(new Date());
+      setTimeout(() => setIsRefreshing(false), 500);
     } catch (error) {
       console.error('Error loading data:', error);
+      setIsRefreshing(false);
     }
   };
 
@@ -146,8 +155,6 @@ export default function SimpleDashboard() {
     const updatedCourses = [...otherCourses, ...newCourses];
     localStorage.setItem('savedCourses', JSON.stringify(updatedCourses));
     setCourses(newCourses);
-    
-    console.log('💾 Saved courses:', newCourses.length, newCourses);
   };
 
   const saveSessions = (newSessions) => {
@@ -206,7 +213,6 @@ export default function SimpleDashboard() {
     showToast(`Course "${course.courseName}" saved!`, 'success');
   };
 
-  // ===== UPDATED: Quick Start with API =====
   const quickStartFromCourse = async (course) => {
     const finalDept = quickDepartment === 'Other (Specify)' ? quickCustomDept : quickDepartment;
     const finalLvl = quickLevel === 'Other (Specify)' ? quickCustomLevel : quickLevel;
@@ -225,30 +231,7 @@ export default function SimpleDashboard() {
       }
     }
 
-    // Get user's location
-    let location = null;
     try {
-      const position = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 5000,
-          maximumAge: 0
-        });
-      });
-      location = {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-        radiusInMeters: 100 // Default 100 meters
-      };
-    } catch (error) {
-      console.log('⚠️ Location not available:', error);
-      // Continue without location
-    }
-
-    // ===== CREATE SESSION VIA API =====
-    try {
-      showToast('Creating session...', 'info');
-      
       const response = await fetch('/api/sessions/create', {
         method: 'POST',
         headers: {
@@ -264,7 +247,7 @@ export default function SimpleDashboard() {
           lecturerId: lecturer.id,
           lecturerName: lecturer.name,
           lecturerEmail: lecturer.email,
-          location: location
+          location: null
         })
       });
 
@@ -276,8 +259,6 @@ export default function SimpleDashboard() {
       }
 
       const session = data.session;
-
-      // Also save to localStorage for quick access
       saveSessions([session, ...sessions]);
       
       setShowQuickStart(false);
@@ -290,14 +271,13 @@ export default function SimpleDashboard() {
       navigator.clipboard.writeText(session.link);
       
       const capacityInfo = maxStudents ? ` (Max: ${maxStudents} students)` : ' (Unlimited)';
-      showToast(`${course.courseName} - Started! Link copied!${capacityInfo}`, 'success');
+      showToast(`${course.courseName} - Started! Link copied!${capacityInfo}`, 'success', 5000);
     } catch (error) {
       console.error('Error creating session:', error);
       showToast('Network error. Please try again.', 'error');
     }
   };
 
-  // ===== UPDATED: Super Quick Start with API =====
   const superQuickStart = async () => {
     if (courses.length === 0) {
       showToast('Please create a course first', 'warning');
@@ -307,29 +287,7 @@ export default function SimpleDashboard() {
 
     const course = courses[0];
 
-    // Get user's location
-    let location = null;
     try {
-      const position = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 5000,
-          maximumAge: 0
-        });
-      });
-      location = {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-        radiusInMeters: 100
-      };
-    } catch (error) {
-      console.log('⚠️ Location not available');
-    }
-
-    // ===== CREATE SESSION VIA API =====
-    try {
-      showToast('Creating session...', 'info');
-      
       const response = await fetch('/api/sessions/create', {
         method: 'POST',
         headers: {
@@ -345,7 +303,7 @@ export default function SimpleDashboard() {
           lecturerId: lecturer.id,
           lecturerName: lecturer.name,
           lecturerEmail: lecturer.email,
-          location: location
+          location: null
         })
       });
 
@@ -360,7 +318,7 @@ export default function SimpleDashboard() {
       saveSessions([session, ...sessions]);
       
       navigator.clipboard.writeText(session.link);
-      showToast(`${course.courseName} - Started! Link copied! (Unlimited)`, 'success');
+      showToast(`${course.courseName} - Started! Link copied! (Unlimited)`, 'success', 5000);
     } catch (error) {
       console.error('Error:', error);
       showToast('Network error. Please try again.', 'error');
@@ -371,23 +329,25 @@ export default function SimpleDashboard() {
     if (confirm('Delete this saved course?')) {
       const updatedCourses = courses.filter(c => c.id !== courseId);
       saveCourses(updatedCourses);
-      showToast('Course deleted', 'info');
+      showToast('Course deleted', 'info', 3000);
     }
   };
 
   const deleteSession = (sessionId) => {
     if (confirm('Delete this session?')) {
       saveSessions(sessions.filter(s => s.id !== sessionId));
-      showToast('Session deleted', 'info');
+      showToast('Session deleted', 'info', 3000);
     }
   };
 
   const exportToCSV = (session) => {
-    const headers = ['#', 'Reg Number', 'Full Name', 'Timestamp'];
+    const headers = ['#', 'Reg Number', 'Full Name', 'Department', 'Level', 'Timestamp'];
     const rows = session.students?.map((student, idx) => [
       idx + 1,
       student.regNumber,
       student.fullName,
+      student.department || session.department,
+      student.level || session.level,
       new Date(student.timestamp).toLocaleString()
     ]) || [];
 
@@ -400,6 +360,7 @@ export default function SimpleDashboard() {
       `Course Code: ${session.courseCode}`,
       `Department: ${session.department}`,
       `Level: ${session.level}`,
+      `Lecturer: ${session.lecturerName}`,
       `Date: ${formatDateTime(session.createdAt)}`,
       capacityLine,
       '',
@@ -411,7 +372,7 @@ export default function SimpleDashboard() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${session.courseCode}_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `Attendance_${session.courseCode}_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
     showToast('CSV exported successfully!', 'success');
@@ -454,6 +415,18 @@ export default function SimpleDashboard() {
     };
   };
 
+  const getTimeRemaining = (expiresAt) => {
+    const now = new Date();
+    const expiry = new Date(expiresAt);
+    const diff = expiry.getTime() - now.getTime();
+    
+    if (diff <= 0) return 'Expired';
+    
+    const minutes = Math.floor(diff / 60000);
+    const seconds = Math.floor((diff % 60000) / 1000);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
   const formatDateTime = (dateStr) => {
     const date = new Date(dateStr);
     return date.toLocaleString('en-US', {
@@ -494,10 +467,16 @@ export default function SimpleDashboard() {
     return status.label !== 'Expired' && status.label !== 'Full';
   });
 
+  const totalAttendees = sessions.reduce((sum, s) => sum + (s.students?.length || 0), 0);
+  const avgAttendance = sessions.length > 0 ? Math.round(totalAttendees / sessions.length) : 0;
+
   if (!lecturer) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-600 to-purple-800 flex items-center justify-center">
-        <div className="text-white text-2xl">Loading...</div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-white mx-auto mb-4"></div>
+          <p className="text-white text-xl font-semibold">Loading Dashboard...</p>
+        </div>
       </div>
     );
   }
@@ -507,7 +486,13 @@ export default function SimpleDashboard() {
       {/* Toast Notifications */}
       <div className="fixed top-4 right-4 z-50 space-y-2 max-w-sm">
         {toasts.map(toast => (
-          <Toast key={toast.id} message={toast.message} type={toast.type} onClose={() => removeToast(toast.id)} />
+          <Toast 
+            key={toast.id} 
+            message={toast.message} 
+            type={toast.type}
+            duration={toast.duration}
+            onClose={() => removeToast(toast.id)} 
+          />
         ))}
       </div>
 
@@ -517,14 +502,22 @@ export default function SimpleDashboard() {
           <div className="flex justify-between items-center">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3">
-                <BookOpen className="w-8 h-8 text-blue-600" />
+                <div className="bg-gradient-to-br from-blue-600 to-purple-600 p-2 rounded-lg">
+                  <BookOpen className="w-8 h-8 text-white" />
+                </div>
                 <div>
                   <h1 className="text-2xl lg:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent truncate">
                     Smart Attendance
                   </h1>
-                  <p className="text-sm text-gray-600 truncate">
-                    Welcome, <span className="font-bold">{lecturer.name}</span>
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm text-gray-600 truncate">
+                      Welcome, <span className="font-bold">{lecturer.name}</span>
+                    </p>
+                    <div className="flex items-center gap-1 text-xs text-gray-500">
+                      <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+                      <span>{formatTimeAgo(lastRefresh)}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -532,7 +525,7 @@ export default function SimpleDashboard() {
             {/* Desktop Menu */}
             <div className="hidden lg:flex gap-3">
               <button onClick={superQuickStart} className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-8 py-4 rounded-xl font-bold hover:shadow-2xl transition transform hover:scale-105 flex items-center gap-2">
-                <Play className="w-5 h-5" />
+                <Zap className="w-5 h-5" />
                 QUICK START
               </button>
               <button onClick={() => setShowQuickStart(true)} className="bg-blue-600 text-white px-6 py-4 rounded-xl font-semibold hover:bg-blue-700 transition flex items-center gap-2">
@@ -547,7 +540,7 @@ export default function SimpleDashboard() {
                   if (confirm('Are you sure you want to logout?')) {
                     localStorage.removeItem('lecturer');
                     localStorage.removeItem('token');
-                    showToast('Logged out!', 'success');
+                    showToast('Logged out!', 'success', 2000);
                     setTimeout(() => window.location.href = '/login', 1000);
                   }
                 }} className="bg-red-500 text-white px-6 py-4 rounded-xl font-semibold hover:bg-red-600 transition flex items-center gap-2">
@@ -566,7 +559,7 @@ export default function SimpleDashboard() {
           {showMobileMenu && (
             <div className="lg:hidden mt-4 space-y-2 pb-2">
               <button onClick={() => { superQuickStart(); setShowMobileMenu(false); }} className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-3 rounded-xl font-bold hover:shadow-lg transition flex items-center justify-center gap-2">
-                <Play className="w-5 h-5" />
+                <Zap className="w-5 h-5" />
                 QUICK START
               </button>
               <button onClick={() => { setShowQuickStart(true); setShowMobileMenu(false); }} className="w-full bg-blue-600 text-white px-4 py-3 rounded-xl font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2">
@@ -581,7 +574,7 @@ export default function SimpleDashboard() {
                   if (confirm('Are you sure you want to logout?')) {
                     localStorage.removeItem('lecturer');
                     localStorage.removeItem('token');
-                    showToast('Logged out!', 'success');
+                    showToast('Logged out!', 'success', 2000);
                     setTimeout(() => window.location.href = '/login', 1000);
                   }
                 }} className="w-full bg-red-500 text-white px-4 py-3 rounded-xl font-semibold hover:bg-red-600 transition flex items-center justify-center gap-2">
@@ -597,7 +590,7 @@ export default function SimpleDashboard() {
       <div className="max-w-7xl mx-auto px-4 lg:px-6 py-8">
         {/* Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
-          <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-6 rounded-xl shadow-lg text-white">
+          <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-6 rounded-xl shadow-lg text-white transform hover:scale-105 transition">
             <div className="flex items-center justify-between mb-2">
               <Calendar className="w-8 h-8 text-blue-100" />
               <div className="text-right">
@@ -606,7 +599,7 @@ export default function SimpleDashboard() {
               </div>
             </div>
           </div>
-          <div className="bg-gradient-to-br from-green-500 to-green-600 p-6 rounded-xl shadow-lg text-white">
+          <div className="bg-gradient-to-br from-green-500 to-green-600 p-6 rounded-xl shadow-lg text-white transform hover:scale-105 transition">
             <div className="flex items-center justify-between mb-2">
               <CheckCircle className="w-8 h-8 text-green-100" />
               <div className="text-right">
@@ -615,21 +608,21 @@ export default function SimpleDashboard() {
               </div>
             </div>
           </div>
-          <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-6 rounded-xl shadow-lg text-white">
+          <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-6 rounded-xl shadow-lg text-white transform hover:scale-105 transition">
             <div className="flex items-center justify-between mb-2">
               <UserCheck className="w-8 h-8 text-purple-100" />
               <div className="text-right">
                 <p className="text-purple-100 text-sm">Total Attendees</p>
-                <p className="text-4xl font-bold mt-1">{sessions.reduce((sum, s) => sum + (s.students?.length || 0), 0)}</p>
+                <p className="text-4xl font-bold mt-1">{totalAttendees}</p>
               </div>
             </div>
           </div>
-          <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-6 rounded-xl shadow-lg text-white">
+          <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-6 rounded-xl shadow-lg text-white transform hover:scale-105 transition">
             <div className="flex items-center justify-between mb-2">
-              <BookOpen className="w-8 h-8 text-orange-100" />
+              <Award className="w-8 h-8 text-orange-100" />
               <div className="text-right">
-                <p className="text-orange-100 text-sm">Saved Courses</p>
-                <p className="text-4xl font-bold mt-1">{courses.length}</p>
+                <p className="text-orange-100 text-sm">Avg/Session</p>
+                <p className="text-4xl font-bold mt-1">{avgAttendance}</p>
               </div>
             </div>
           </div>
@@ -668,7 +661,7 @@ export default function SimpleDashboard() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {courses.map(course => (
-                <div key={course.id} className="border-2 border-blue-400 rounded-xl p-6 hover:border-blue-600 hover:shadow-2xl transition bg-gradient-to-br from-white to-blue-50">
+                <div key={course.id} className="border-2 border-blue-400 rounded-xl p-6 hover:border-blue-600 hover:shadow-2xl transition bg-gradient-to-br from-white to-blue-50 transform hover:scale-105">
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex-1 min-w-0 pr-2">
                       <h3 className="font-black text-2xl text-gray-900 truncate leading-tight">{course.courseName}</h3>
@@ -729,9 +722,10 @@ export default function SimpleDashboard() {
                 const hasCapacity = session.maxStudents !== null && session.maxStudents !== undefined;
                 const percentage = getCapacityPercentage(session);
                 const isFull = hasCapacity && currentCount >= session.maxStudents;
+                const timeRemaining = getTimeRemaining(session.expiresAt);
                 
                 return (
-                  <div key={session.id} className="p-6 bg-gradient-to-br from-gray-50 to-blue-50 rounded-xl hover:from-blue-50 hover:to-purple-50 hover:shadow-2xl transition cursor-pointer border-2 border-gray-300 hover:border-blue-400" onClick={() => setShowSessionDetails(session)}>
+                  <div key={session.id} className="p-6 bg-gradient-to-br from-gray-50 to-blue-50 rounded-xl hover:from-blue-50 hover:to-purple-50 hover:shadow-2xl transition cursor-pointer border-2 border-gray-300 hover:border-blue-400 transform hover:scale-[1.01]" onClick={() => setShowSessionDetails(session)}>
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex-1 min-w-0">
                         <h3 className="font-black text-2xl text-gray-900 truncate leading-tight">{session.courseName}</h3>
@@ -741,13 +735,20 @@ export default function SimpleDashboard() {
                           <p className="text-sm font-bold text-indigo-700 truncate">🎓 {session.level}</p>
                         </div>
                       </div>
-                      <span className={`px-4 py-2 rounded-full text-sm font-black ${status.color} flex-shrink-0 flex items-center gap-2 shadow-lg`}>
-                        {status.icon}
-                        {status.label}
-                      </span>
+                      <div className="flex flex-col items-end gap-2">
+                        <span className={`px-4 py-2 rounded-full text-sm font-black ${status.color} flex-shrink-0 flex items-center gap-2 shadow-lg`}>
+                          {status.icon}
+                          {status.label}
+                        </span>
+                        {status.label === 'Active' && (
+                          <span className="text-xs font-mono font-bold text-gray-600 bg-white px-3 py-1 rounded-full border border-gray-300">
+                            ⏱️ {timeRemaining}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Capacity Progress Bar (if maxStudents is set) */}
+                    {/* Capacity Progress Bar */}
                     {hasCapacity && (
                       <div className="mb-4 bg-white rounded-lg p-3 border-2 border-gray-200">
                         <div className="flex items-center justify-between text-sm font-black text-gray-800 mb-2">
@@ -958,7 +959,6 @@ export default function SimpleDashboard() {
                   )}
                 </div>
 
-                {/* Info Box */}
                 <div className="bg-blue-50 border-2 border-blue-300 rounded-xl p-4 mb-4">
                   <div className="flex items-start gap-3">
                     <AlertCircle className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" />
@@ -981,7 +981,7 @@ export default function SimpleDashboard() {
                 <p className="text-sm text-gray-700 mb-4 font-bold">📚 Select course to start:</p>
                 <div className="space-y-3">
                   {courses.map(course => (
-                    <button key={course.id} onClick={() => quickStartFromCourse(course)} className="w-full p-5 bg-blue-50 hover:bg-blue-100 rounded-xl text-left transition border-2 border-blue-200 hover:border-blue-400 shadow-sm hover:shadow-lg">
+                    <button key={course.id} onClick={() => quickStartFromCourse(course)} className="w-full p-5 bg-blue-50 hover:bg-blue-100 rounded-xl text-left transition border-2 border-blue-200 hover:border-blue-400 shadow-sm hover:shadow-lg transform hover:scale-[1.01]">
                       <p className="font-black text-xl text-gray-900">{course.courseName}</p>
                       <p className="text-base text-blue-700 font-black font-mono mt-1 tracking-wide">{course.courseCode}</p>
                       <p className="text-sm text-purple-700 mt-2 font-bold">📚 {course.department} • 🎓 {course.level}</p>
@@ -1093,7 +1093,7 @@ export default function SimpleDashboard() {
                 </div>
               )}
               <div className="grid grid-cols-2 gap-3 mt-6">
-                <button onClick={() => { navigator.clipboard.writeText(showSessionDetails.link); showToast('Link copied!', 'success'); }} className="bg-blue-600 text-white px-4 py-3 rounded-lg font-semibold hover:bg-blue-700 flex items-center justify-center gap-2 transition">
+                <button onClick={() => { navigator.clipboard.writeText(showSessionDetails.link); showToast('Link copied!', 'success', 2000); }} className="bg-blue-600 text-white px-4 py-3 rounded-lg font-semibold hover:bg-blue-700 flex items-center justify-center gap-2 transition">
                   <Copy className="w-5 h-5" />
                   Copy Link
                 </button>
@@ -1103,13 +1103,13 @@ export default function SimpleDashboard() {
                         title: `${showSessionDetails.courseName} Attendance`,
                         text: `Join attendance for ${showSessionDetails.courseName} (${showSessionDetails.courseCode})`,
                         url: showSessionDetails.link
-                      }).then(() => showToast('Shared!', 'success')).catch(() => {
+                      }).then(() => showToast('Shared!', 'success', 2000)).catch(() => {
                         navigator.clipboard.writeText(showSessionDetails.link);
-                        showToast('Link copied! Share manually.', 'info');
+                        showToast('Link copied! Share manually.', 'info', 2000);
                       });
                     } else {
                       navigator.clipboard.writeText(showSessionDetails.link);
-                      showToast('Link copied! Share manually.', 'info');
+                      showToast('Link copied! Share manually.', 'info', 2000);
                     }
                   }} className="bg-purple-600 text-white px-4 py-3 rounded-lg font-semibold hover:bg-purple-700 flex items-center justify-center gap-2 transition">
                   <Share2 className="w-5 h-5" />
