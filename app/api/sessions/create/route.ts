@@ -35,6 +35,11 @@ export async function POST(request) {
     // Generate secure token
     const secureToken = crypto.randomBytes(32).toString('hex');
     
+    // ===== AUTO-DETECT DOMAIN FROM REQUEST =====
+    const host = request.headers.get('host');
+    const protocol = request.headers.get('x-forwarded-proto') || (host?.includes('localhost') ? 'http' : 'https');
+    const baseUrl = `${protocol}://${host}`;
+    
     const session = {
       id: sessionId,
       lecturerId,
@@ -50,7 +55,7 @@ export async function POST(request) {
       maxStudents: maxStudents || null,
       location: location || null,
       secureToken,
-      link: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/attendance/${sessionId}`,
+      link: `${baseUrl}/attendance/${sessionId}`, // ✅ FIXED: Auto-detects domain
       status: 'active',
       students: [],
       totalPresent: 0
@@ -60,6 +65,7 @@ export async function POST(request) {
     await db.collection('sessions').insertOne(session);
 
     console.log('✅ Session created in MongoDB:', sessionId);
+    console.log('🔗 Generated link:', session.link);
 
     return NextResponse.json({
       success: true,
