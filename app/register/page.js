@@ -822,7 +822,7 @@ export default function Register() {
 
           <div>
             <label className="block text-slate-700 font-semibold mb-2 text-sm">
-              University <span className="text-slate-400 text-xs">(Optional)</span>
+               Institution Name  <span className="text-slate-400 text-xs">(Optional)</span>
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">

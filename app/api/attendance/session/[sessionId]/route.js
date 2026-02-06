@@ -4,22 +4,14 @@ import clientPromise from '@/lib/mongodb';
 
 export async function GET(request, { params }) {
   try {
-    // ===== FIX: AWAIT params in Next.js 15 =====
     const { sessionId } = await params;
 
-    if (!sessionId) {
-      return NextResponse.json({
-        success: false,
-        message: 'Session ID is required'
-      }, { status: 400 });
-    }
-
-    console.log('📖 Fetching session:', sessionId);
+    console.log('📝 Fetching session:', sessionId);
 
     const client = await clientPromise;
     const db = client.db('attendance_system');
 
-    // Find the session
+    // Get session from MongoDB
     const session = await db.collection('sessions').findOne({ id: sessionId });
 
     if (!session) {
@@ -30,53 +22,37 @@ export async function GET(request, { params }) {
       }, { status: 404 });
     }
 
-    // Check if session is active
-    if (session.status !== 'active') {
-      return NextResponse.json({
-        success: false,
-        message: `This attendance session is ${session.status}. Please contact your lecturer.`
-      }, { status: 400 });
-    }
-
-    // Check if session has expired
+    // Check if session is expired
     const now = new Date();
     const expiresAt = new Date(session.expiresAt);
     
-    if (now > expiresAt) {
+    if (now > expiresAt && session.status === 'active') {
       // Auto-expire the session
       await db.collection('sessions').updateOne(
         { id: sessionId },
         { $set: { status: 'expired' } }
       );
-      
-      return NextResponse.json({
-        success: false,
-        message: '⏰ This attendance session has expired'
-      }, { status: 400 });
+      session.status = 'expired';
     }
 
-    console.log('✅ Session found:', {
-      id: session.id,
-      courseCode: session.courseCode,
-      courseName: session.courseName,
-      status: session.status,
-      expiresAt: session.expiresAt
+    // Get attendance count
+    const attendanceCount = await db.collection('attendance_records').countDocuments({
+      sessionId,
+      status: 'present'
     });
 
-    // Return session data (excluding sensitive fields like lecturer info)
+    console.log('✅ Session found:', {
+      id: sessionId,
+      courseName: session.courseName,
+      status: session.status,
+      attendanceCount
+    });
+
     return NextResponse.json({
       success: true,
       session: {
-        id: session.id,
-        courseCode: session.courseCode,
-        courseName: session.courseName,
-        department: session.department,
-        level: session.level,
-        expiresAt: session.expiresAt,
-        status: session.status,
-        location: session.location, // Needed for distance calculation
-        maxStudents: session.maxStudents,
-        secureToken: session.secureToken // Include token so students can submit
+        ...session,
+        currentAttendance: attendanceCount
       }
     });
 
@@ -84,7 +60,7 @@ export async function GET(request, { params }) {
     console.error('❌ Error fetching session:', error);
     return NextResponse.json({
       success: false,
-      message: 'Failed to fetch session details'
+      message: 'Failed to fetch session'
     }, { status: 500 });
   }
 }
